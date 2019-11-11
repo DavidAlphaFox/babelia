@@ -4,7 +4,7 @@ help: ## This help.
 check: ## Run tests
 	@echo "\n"
 	guile -L . check.scm
-	#@echo "\033[95m\n\nYou may now run 'make lint'.\n\033[0m"
+# @echo "\033[95m\n\nYou may now run 'make lint'.\n\033[0m"
 
 todo: ## Things that should be done
 	@grep -nR --color=always TODO hoply.py
