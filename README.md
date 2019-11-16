@@ -21,10 +21,9 @@ Wanna be search engine with federation support
   - [x] wiredtiger backend
   - [ ] memory backend
   - [ ] foundationdb backend
-- [ ] srfi-168 (nstore)
-- [ ] sculid, similar to [ulid](https://github.com/ulid/spec) with a
-      16bits to represent thread index that will avoid identifier
-      collisions and increase concurrency
+- [x] srfi-168 (nstore)
+- [x] [ulid](https://github.com/ulid/spec) with 16 bits of randomness
+      that are choosen per-thread set in a parameter.
 - [ ] object store
 - [ ] map-reduce
 - [ ] index
