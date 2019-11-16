@@ -70,7 +70,7 @@
         (loop (cdr bvs) (+ index (bytevector-length (car bvs))))))
     out))
 
-(define (ulid)
+(define-public (ulid)
   (let ((epoch (pack (current-milliseconds)))
         (index (thread-index))
         (randomness (random-bytes 8)))
