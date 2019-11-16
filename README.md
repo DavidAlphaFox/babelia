@@ -8,22 +8,31 @@ Wanna be search engine with federation support
 
 ## TODO
 
-- [ ] wiredtiger bindings
+- [x] wiredtiger bindings
 - [ ] foundationdb bindings
-- [ ] ~~srfi-128 (comparators)~~, not required since `(mapping hash)`
+- [x] ~~srfi-128 (comparators)~~, not required since `(mapping hash)`
       was replaced with `fash`
-- [ ] ~~srfi-146 (mappings hash)~~, instead use
+- [x] ~~srfi-146 (mappings hash)~~, use
       [fash](https://www.wingolog.org/pub/fash.scm)
-- [ ] srfi-158 (generators)
-- [ ] srfi-167 (okvs)
+- [x] srfi-158 (generators)
+- [x] srfi-167 (okvs)
+  - [x] `pack` and `unpack`
+  - [x] `<engine>` type class object
+  - [x] wiredtiger backend
+  - [ ] memory backend
+  - [ ] foundationdb backend
 - [ ] srfi-168 (nstore)
-- [ ] ~~srfi-173 (hooks)~~, instead use guile's hooks
 - [ ] sculid, similar to [ulid](https://github.com/ulid/spec) with a
       16bits to represent thread index that will avoid identifier
       collisions and increase concurrency
 - [ ] object store
 - [ ] map-reduce
+- [ ] index
+- [ ] query
 - [ ] wet/wat/warc file crawler
 - [ ] wet/wat/warc file consumer
+- [ ] search pad
+- [ ] spell checking
+- [ ] more-like-this
 - [ ] sensimark
 - [ ] federation

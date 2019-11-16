@@ -1,0 +1,237 @@
+(define-module (babelia wiredtiger tests))
+
+(import (babelia testing))
+(import (babelia wiredtiger))
+(import (rnrs bytevectors))
+
+;; helper: (with-directory path body ...)
+
+(define (path-exists? path)
+  "Return #true if path is a file or directory.
+   #false if it doesn't exists"
+  (access? path F_OK))
+
+(define (path-join . rest)
+  "Return the absolute path made of REST. If the first item
+   of REST is not absolute the current working directory
+   will be prepended"
+  (let ((path (string-join rest "/")))
+    (if (string-prefix? "/" path)
+        path
+        (string-append (getcwd) "/" path))))
+
+(define (path-split path)
+  (let ((parts (string-split path #\/)))
+    (if (equal? (car parts) "")
+        (cons (string-append "/" (cadr parts)) (cddr parts))
+        parts)))
+
+(define (path-mkdir dirpath parents)
+  "Create DIRPATH directory and its parents if PARENTS is true"
+  (if parents
+      (let* ((parts (path-split dirpath))
+             (paths (let loop ((dirs (cdr parts))
+                               (out (list (car parts))))
+                      (if (null? dirs)
+                          (reverse out)
+                          (loop (cdr dirs) (cons (apply path-join (list (car out) (car dirs))) out))))))
+        (and (map (lambda (p) (if (not (path-exists? p)) (mkdir p))) paths) #true))
+      (if (not (path-exists? dirpath)) (and (mkdir dirpath) #true))))
+
+(define (path-walk dirpath proc)
+  (define dir (opendir dirpath))
+  (let loop ()
+    (let ((entry (readdir dir)))
+      (cond
+       ((eof-object? entry))
+       ((or (equal? entry ".") (equal? entry "..")) (loop))
+       (else (let ((path (path-join dirpath entry)))
+               (if (equal? (stat:type (stat path)) 'directory)
+                   (begin (path-walk path proc) (loop))
+                   (begin (proc path) (loop))))))))
+  (closedir dir)
+  (proc (path-join dirpath)))
+
+(define (rmtree path)
+  (path-walk path (lambda (path)
+                    (if (equal? (stat:type (stat path)) 'directory)
+                        (rmdir path)
+                        (delete-file path)))))
+
+(define-syntax-rule (with-directory path e ...)
+  ;; TODO: use guard to delete the directory in case of exception
+  (begin
+    (when (access? path F_OK)
+      (rmtree path))
+    (mkdir path)
+    (let ((out (begin e ...)))
+      (rmtree path)
+      out)))
+
+;; helper: (with-cnx cnx body ...)
+
+(define-syntax-rule (with-connection name connection e ...)
+  ;; TODO: use guard to close connection in case of exception
+  (with-directory "wt"
+    (let* ((name connection)
+           (out (begin e ...)))
+      (connection-close name "")
+      out)))
+
+
+(define-public test-000
+  (test #t (with-connection cnx (connection-open "wt" "create") #t)))
+
+(define-public test-001
+  (test
+   (list (list "a" "b") (list 42))
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       ;; create a table
+       (session-create session "table:nodes" "key_format=Q,value_format=SS,columns=(a,b,c)")
+       (session-create session "index:nodes:index" "columns=(b,c)")
+       ;; open a cursor over that table
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         (session-transaction-begin session "isolation=\"snapshot\"")
+         (cursor-key-set cursor 42)
+         (cursor-value-set cursor "a" "b")
+         (cursor-insert cursor)
+         (session-transaction-commit session "")
+         (let ((index (cursor-open session "index:nodes:index(a)" "")))
+           (cursor-next? index)
+           (list (call-with-values (lambda () (cursor-key-ref index)) list)
+                 (call-with-values (lambda () (cursor-value-ref index)) list))))))))
+
+(define-public test-002
+  (test
+   #f
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       ;; create a table
+       (session-create session "table:nodes" "key_format=Q,value_format=SS,columns=(a,b,c)")
+       ;; open a cursor over that table
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         (cursor-key-set cursor 42)
+         (cursor-search? cursor))))))
+
+(define-public test-003
+  (test
+   #t
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       ;; create a table
+       (session-create session "table:nodes" "key_format=Q,value_format=SS,columns=(a,b,c)")
+       ;; open a cursor over that table
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         (cursor-key-set cursor 42)
+         (cursor-value-set cursor "b" "c")
+         (cursor-insert cursor)
+         (cursor-key-set cursor 42)
+         (cursor-search? cursor))))))
+
+(define-public test-004
+  (test
+   #f
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:nodes" "key_format=Q,value_format=S,columns=(a,b)")
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         (cursor-key-set cursor 42)
+         (cursor-search-near cursor))))))
+
+(define-public test-005
+  (test
+   'before
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:nodes" "key_format=Q,value_format=S,columns=(a,b)")
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         ;; prepare
+         (cursor-key-set cursor 42)
+         (cursor-value-set cursor "magic number")
+         (cursor-insert cursor)
+         ;; test
+         (cursor-key-set cursor 43)
+         (cursor-search-near cursor))))))
+
+(define-public test-006
+ (test
+  'after
+  (with-connection cnx (connection-open "wt" "create")
+    (let ((session (session-open cnx "")))
+      (session-create session "table:nodes" "key_format=Q,value_format=S,columns=(a,b)")
+      (let ((cursor (cursor-open session "table:nodes" "")))
+        ;; prepare
+        (cursor-key-set cursor 42)
+        (cursor-value-set cursor "magic number")
+        (cursor-insert cursor)
+        ;; test
+        (cursor-key-set cursor 41)
+        (cursor-search-near cursor))))))
+
+(define-public test-007
+  (test
+   'after
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:nodes" "key_format=Q,value_format=S,columns=(a,b)")
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         ;; prepare
+         (cursor-key-set cursor 41)
+         (cursor-value-set cursor "another number")
+         (cursor-insert cursor)
+         (cursor-key-set cursor 42)
+         (cursor-value-set cursor "magic number")
+         (cursor-insert cursor)
+         (cursor-key-set cursor 45)
+         (cursor-value-set cursor "random number")
+         (cursor-insert cursor)
+         ;; test
+         (cursor-key-set cursor 43)
+         (cursor-search-near cursor))))))
+
+(define-public test-008
+  (test
+   'exact
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:nodes" "key_format=Q,value_format=S,columns=(a,b)")
+       (let ((cursor (cursor-open session "table:nodes" "")))
+         ;; prepare
+         (cursor-key-set cursor 41)
+         (cursor-value-set cursor "another number")
+         (cursor-insert cursor)
+         (cursor-key-set cursor 42)
+         (cursor-value-set cursor "magic number")
+         (cursor-insert cursor)
+         (cursor-key-set cursor 45)
+         (cursor-value-set cursor "random number")
+         (cursor-insert cursor)
+         ;; test
+         (cursor-key-set cursor 42)
+         (cursor-search-near cursor))))))
+
+(define-public test-009
+  (test
+   1
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:terms" "key_format=r,value_format=S")
+       (let ((cursor (cursor-open session "table:terms" "append")))
+         (cursor-value-set cursor "timesink")
+         (cursor-insert cursor)
+         (cursor-key-ref cursor))))))
+
+(define-public test-010
+  (test
+  '(41 42 43)
+   (with-connection cnx (connection-open "wt" "create")
+     (let ((session (session-open cnx "")))
+       (session-create session "table:terms" "key_format=r,value_format=u")
+       (let ((cursor (cursor-open session "table:terms" "append")))
+         (cursor-value-set cursor #vu8(41 42 43))
+         (cursor-insert cursor)
+         (cursor-key-set cursor 1)
+         (cursor-search? cursor)
+         ;; make a copy as list
+         (bytevector->u8-list (cursor-value-ref cursor)))))))

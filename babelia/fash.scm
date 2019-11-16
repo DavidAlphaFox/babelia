@@ -16,15 +16,32 @@
 
 ;;; Commentary:
 ;;;
-;;; A fash is a functional hash map.
+;;; A fash is a functional hash map. The interface is similar to that of regular
+;;; hash tables with eq? eqv? and equal? behaviour with regards to keys.
+;;; When creating fashes you have to decide how keys are compared. If the keys you
+;;; are using are comparable using eq? (like symbols or keywords) that is by far
+;;; the fastest way of comparing keys. If you want to use strings as keys, you will
+;;; have to use the (fash ...)-style fashes. For eqv? comparisons you can use (fashv ...)
+;;; and for eq? comparisons (fashq ...).
 ;;;
+;;; Andy Wingo wrote this code, I deserve no credit.
+;;;
+;;;; TODO: fash-remove. Maybe make a generic hash-update that allows both setting and unsetting
+;;;;       without having to duplicate fash-set. Currently I have _no_ idea how to do this
+;;;;       because I find this code quite impenetrable. I could add this as a hack that just
+;;;;       overwrites the value of the key with <fash-null> and have fash-get and fash-fold
+;;;;       respect that.
+;;;; TODO: fash-map, fash-for-each -  trivial to write over fold.
+;;;; TODO: fash-keys and fash-values
 ;;; Code:
 
-(define-module (babelia fash)
+(define-module (fash)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
   #:use-module (srfi srfi-11)
+  #:use-module (ice-9 atomic)
   #:use-module (ice-9 match)
+  #:use-module ((ice-9 threads) #:select (current-thread))
   #:export (fash?
             make-fash
             make-transient-fash
@@ -34,24 +51,31 @@
             fash-ref
             fash-set
             fash-set!
+            fash-set*
+            fash-set*!
             fash-fold
             fash-unfold
             fash->alist
             alist->fash
             fash
             fashq
-            fashv))
+            fashv
+            fash-count
+            fash-eq?
+            fash-equal?
+            fash-eqv?
+            fash-empty?))
 
 (define-syntax-rule (define-inline name val)
   (define-syntax name (identifier-syntax val)))
 
-;; FIXME: This should make an actual atomic reference.
+;; FIXME: actually inline this.
 (define-inlinable (make-atomic-reference value)
-  (list value))
+  (make-atomic-box value))
 (define-inlinable (get-atomic-reference reference)
-  (car reference))
+  (atomic-box-ref reference))
 (define-inlinable (set-atomic-reference! reference value)
-  (set-car! reference value))
+  (atomic-box-set! reference value))
 
 (define-syntax compile-time-cond
   (lambda (x)
@@ -63,6 +87,7 @@
            #'(begin body ...)
            #'(compile-time-cond clause ...))))))
 
+;;; This makes fashes better suited for 32-bit platforms at the cost of higher trees.
 (compile-time-cond
  ((>= (logcount most-positive-fixnum) 32)
   (define-inline *branch-bits* 5))
@@ -102,9 +127,15 @@
 (define (raw-hash x)
   (hash x most-positive-fixnum))
 
+;; Returns a new empty persistent fash.
+;; @var{hash} is the hashing function used (defaults to raw-hash)
+;; @var{equal} is the key comparison function, which defaults to equal?
 (define* (make-fash #:key (hash raw-hash) (equal equal?))
   (%make-fash 0 #f hash equal))
 
+;; Returns a new empty transient fash.
+;; @var{hash} is the hashing function used (defaults to raw-hash)
+;; @var{equal} is the key comparison function, which defaults to equal?
 (define* (make-transient-fash #:key (hash raw-hash) (equal equal?))
   (let ((edit (make-atomic-reference (current-thread))))
     (%make-transient-fash 0 #f hash equal edit)))
@@ -113,6 +144,8 @@
   (unless (eq? (get-atomic-reference root-edit) (current-thread))
     (error "Transient fash owned by another thread" root-edit)))
 
+;; Returns a transient fash based on @var{source}. If @var{source} is already
+;; transient, we ensure it is owned by the thread to disallow parallel edits.
 (define (transient-fash source)
   (match source
     (($ <transient-fash> size root hash equal edit)
@@ -122,6 +155,8 @@
      (let ((edit (make-atomic-reference (current-thread))))
        (%make-transient-fash size root hash equal edit)))))
 
+;; Returns a persistent fash based on @var{source}. If the @var{source} is already
+;; persistent it is returned directly
 (define (persistent-fash source)
   (match source
     (($ <transient-fash> size root hash equal edit)
@@ -138,6 +173,7 @@
     (($ <fash>)
      source)))
 
+;; Returns the number of elements in @var{fash}
 (define (fash-size fash)
   (match fash
     (($ <fash> size) size)
@@ -149,13 +185,16 @@
 
 (define-inlinable (mask h shift)
   (logand (ash h (- shift)) *branch-mask*))
+
 (define-inlinable (bitpos h shift)
   (ash 1 (mask h shift)))
+
 (define-inlinable (index bit bitmap)
   (logcount (logand bitmap (1- bit))))
 
 (define-inlinable (sparse-branch bitmap array edit)
   (vector 'sparse bitmap array edit))
+
 (define-inlinable (packed-branch array edit)
   (vector 'packed array edit))
 
@@ -193,6 +232,8 @@
        (set-transient-fash-size! fash size)
        size))))
 
+;; Retrieves the value in @var{fash} associated with @var{k}. If the key is not found
+;; returns the value returned by (@var{not-found} @var{k}) which defaults to (lambda (k) #f)
 (define* (fash-ref fash k #:optional (not-found (lambda (k) #f)))
   (define (find-value shift root h equal)
     (let recurse ((shift shift) (root root))
@@ -230,6 +271,7 @@
      (assert-readable! edit)
      (find-value 0 root (hash k) equal))))
 
+;; Returns a new persistent fash with the association (@var{k} @var{v}) added to @var{fash}.
 (define* (fash-set fash k v)
   (define (update shift root h equal)
     (let recurse ((shift shift) (root root))
@@ -340,6 +382,8 @@
     (($ <transient-fash>)
      (fash-set (persistent-fash fash) k v))))
 
+;; Adds the association (@var{k} @var{v}) to @var{fash}. If @var{fash} is transient, the association
+;; is added in-place. Otherwise, a new transient fash is created from @var{fash}
 (define* (fash-set! fash k v)
   (define (update shift root h equal root-edit)
     (let recurse ((shift shift) (root root))
@@ -450,6 +494,42 @@
     (($ <fash>)
      (fash-set! (transient-fash fash) k v))))
 
+;; (fash-set* fash key value ...) adds the @var{key} -> @var{value} associations to @var{fash}
+;; Returns a new persistent fash without changing @var{fash}.
+(define (fash-set* fash key value . rest)
+  (match fash
+    (($ <fash>)
+     (persistent-fash (apply fash-set*! (transient-fash fash) key value rest)))
+    (($ <transient-fash>)
+     (persistent-fash (apply fash-set*! fash key value rest)))))
+
+;; (fash-set*! fash key value ...) adds the @var{key} -> @var{value} associations to @var{fash}.
+;; If @var{fash} is transient it mutates it, if @var{fash} is persistent a new transient is
+;; created.
+;; Returns a transient fash
+(define (fash-set*! fash key value . rest)
+  (match fash
+    (($ <transient-fash>)
+     (fash-set! fash key value)
+     (let loop ((fash fash) (rest rest))
+       (if (null? rest)
+           fash
+           (loop (fash-set! fash (car rest) (cadr rest)) (cddr rest)))))
+    (($ <fash>)
+     (apply fash-set*! (transient-fash fash) key value rest))))
+
+
+
+;; Folds over @var{fash} with the procedure @var{f}. f takes three arguments, (key value seed)
+;; where seed is the accumulated result so far. @var{seed} is the first seed passed to @var{f}.
+;; There is no guarantee for which order the key-value associations appear.
+;; @example
+;; (define a (fash (#:hej "hå") (#:hopp "stropp") (#:flopp "kropp")))
+;; (fash-fold (lambda (key value seed) (cons (cons key value) seed)) a '())
+;; ;; => '((:#hej . "hå") (#:hopp . "stropp") (#:flopp . "kropp"))
+;; @end example
+;; This is almost exactly how fash->alist is implemented, but with the acons procedure instead of
+;; the lambda.
 (define (fash-fold f fash seed)
   (define (fold root seed)
     (match root
@@ -486,27 +566,34 @@
     (($ <transient-fash>)
      (fash-fold f (persistent-fash fash) seed))))
 
+;; The fash version of srfi-1 unfold.
+;; @var{pred} decides when to stop unfolding
+;; @var{map} maps each seed value to the corresponding fash element
+;; @var{next} maps each seed value to the next seed value
+;; @var{seed} is the state of the unfold
+;; @var{tail} is the resulting fash, which defaults to the empty transient fash.
+;;
+;; Uses transients when appropriate.
 (define* (fash-unfold pred map next seed
                       #:optional (tail (make-transient-fash)))
-  (if (transient-fash? tail)
-      (let lp ((seed seed) (tail tail))
-        (if (pred seed)
-            (persistent-fash tail)
-            (lp (next seed)
-                (call-with-values (lambda () (map seed))
-                  (lambda (k v)
-                    (fash-set! tail k v))))))
-      (let lp ((seed seed) (tail tail))
-        (if (pred seed)
-            tail
-            (lp (next seed)
-                (call-with-values (lambda () (map seed))
-                  (lambda (k v)
-                    (fash-set tail k v))))))))
+  (match tail
+    (($ <transient-fash>)
+     (let lp ((seed seed) (tail tail))
+       (if (pred seed)
+           (persistent-fash tail)
+           (lp (next seed)
+               (call-with-values (lambda () (map seed))
+                 (lambda (k v)
+                   (fash-set! tail k v)))))))
+    (($ <fash>)
+     (persistent-fash (fash-unfold pred map next seed (transient-fash tail))))))
 
+
+;; Converts @var{fash} to an association list.
 (define (fash->alist fash)
   (fash-fold acons fash '()))
 
+;; Converts @var{alist} to a persistent fash. 
 (define* (alist->fash alist #:key (hash raw-hashq) (equal equal?))
   (fash-unfold null?
                (match-lambda (((k . v) . _) (values k v)))
@@ -522,23 +609,73 @@
 (set-record-type-printer! <fash> print-fash)
 (set-record-type-printer! <transient-fash> print-transient-fash)
 
+;; A macro that creates a new persistent equal?-fash with the associations (@var{k} @var{v}).
 (define-syntax-rule (fash (k v) ...)
   (let ((fash (make-transient-fash)))
     (fash-set! fash k v)
     ...
     (persistent-fash fash)))
 
+
+;; A macro that creates a new persistent eq?-fash with the associations (@var{k} @var{v}).
 (define-syntax-rule (fashq (k v) ...)
   (let ((fash (make-transient-fash #:hash raw-hashq #:equal eq?)))
     (fash-set! fash k v)
     ...
     (persistent-fash fash)))
 
+;; A macro that creates a new persistent eqv?-fash with the associations (@var{k} @var{v}).
 (define-syntax-rule (fashv (k v) ...)
   (let ((fash (make-transient-fash #:hash raw-hashv #:equal eqv?)))
     (fash-set! fash k v)
     ...
     (persistent-fash fash)))
+
+;; Counts the number of key + element in @var{fash} that satisfies @var{pred}.
+;; @var{pred} is a function of two arguments, key and value.
+;; @example
+;; (define f (fash ('a 1) ('b 2) ('c 3)))
+;; (fash-count (lambda (key value) (odd? value)) f) ;; => 2
+;; @end{example}
+(define (fash-count pred? fash)
+  (fash-fold (lambda (key value seed)
+               (if (pred? key value)
+                   (1+ seed)
+                   seed))
+             fash 0))
+
+;; Checks if @var{fash} compares it's keys using equal?
+(define (fash-equal? fash)
+  (match fash
+    (($ <fash> _ _ _ equal)
+     (eq? equal? equal))
+    (($ <transient-fash> _ _ _ equal)
+     (eq? equal? equal))))
+
+;; Checks if @var{fash} compares it's keys using eq?
+(define (fash-eq? fash)
+  (match fash
+    (($ <fash> _ _ _ equal)
+     (eq? eq? equal))
+    (($ <transient-fash> _ _ _ equal)
+     (eq? eq? equal))))
+
+;; Checks if @var{fash} compares it's keys using eqv?
+(define (fash-eqv? fash)
+  (match fash
+    (($ <fash> _ _ _ equal)
+     (eq? eqv? equal))
+    (($ <transient-fash> _ _ _ equal)
+     (eq? eqv? equal))))
+
+;; Returns true if @var{fash} is empty
+(define (fash-empty? fash)
+  (match fash
+    (($ <fash> _ root)
+     (not root))
+    (($ <transient-fash> _ root)
+     (not root))))
+
 
 (define (test)
   (define (fash-integers n)
