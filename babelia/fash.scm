@@ -35,7 +35,7 @@
 ;;;; TODO: fash-keys and fash-values
 ;;; Code:
 
-(define-module (fash)
+(define-module (babelia fash)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
   #:use-module (srfi srfi-11)
@@ -593,7 +593,7 @@
 (define (fash->alist fash)
   (fash-fold acons fash '()))
 
-;; Converts @var{alist} to a persistent fash. 
+;; Converts @var{alist} to a persistent fash.
 (define* (alist->fash alist #:key (hash raw-hashq) (equal equal?))
   (fash-unfold null?
                (match-lambda (((k . v) . _) (values k v)))

@@ -248,11 +248,17 @@
           (wt:cursor-reset cursor)
           value))))
 
-(define-public (okvs-set! transaction key value)
+(define (%okvs-set! transaction key value)
   (let ((cursor (session-cursor (transaction-session transaction))))
     (wt:cursor-key-set cursor key)
     (wt:cursor-value-set cursor value)
     (wt:cursor-insert cursor)))
+
+(define-public (okvs-set! okvs-or-transaction key value)
+  (if (okvs-transaction? okvs-or-transaction)
+      (%okvs-set! okvs-or-transaction key value)
+      (okvs-in-transaction okvs-or-transaction
+                           (lambda (transaction) (%okvs-set! transaction key value)))))
 
 (define-public (okvs-delete! transaction key)
   (let ((cursor (session-cursor (transaction-session transaction))))
