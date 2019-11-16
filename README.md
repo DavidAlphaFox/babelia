@@ -6,6 +6,13 @@ Wanna be search engine with federation support
 
 (artwork by [mildtravis](https://dribbble.com/mildtravis))
 
+## Dependencies
+
+- guile 2.2 (but tested with 2.9.4)
+- guile-fibers 1.0.0
+- guile-gcrypt 0.2.0
+- wiredtiger 3.0.0
+
 ## TODO
 
 - [x] wiredtiger bindings
@@ -22,10 +29,10 @@ Wanna be search engine with federation support
   - [ ] memory backend
   - [ ] foundationdb backend
 - [x] srfi-168 (nstore)
-- [x] [ulid](https://github.com/ulid/spec) with 16 bits of randomness
-      that are choosen per-thread set in a parameter.
-- [ ] object store
-- [ ] map-reduce
+- [x] [ulid](https://github.com/ulid/spec)
+- [x] object store
+- [ ] web server
+- [ ] thread pool
 - [ ] index
 - [ ] query
 - [ ] wet/wat/warc file crawler
