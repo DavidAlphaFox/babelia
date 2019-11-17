@@ -30,7 +30,6 @@
 example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
   (split-and-decode-uri-path (uri-path (request-uri request))))
 
-
 (define-public (sxml->response sxml)
   (values '((content-type . (text/html)))
           (lambda (port)
