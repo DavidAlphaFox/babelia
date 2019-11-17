@@ -18,6 +18,8 @@
 ;; unindexing, deleting indexed items in the full-text index, is not
 ;; supported.
 ;;
+;; TODO: it is missing the total count, to be able to compute
+;; frequency.
 (define-module (babelia counter))
 
 (import (srfi srfi-9))

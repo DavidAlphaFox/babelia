@@ -1,12 +1,15 @@
 ;; pool of workers that can be used to execute blocking operation in a
 ;; fibers application.
+;;
+;; TODO: maybe it will be better to re-base this module on `future` or
+;; `promise` object.
 (define-module (babelia pool))
 
+(import (ice-9 match))
 (import (ice-9 threads))
 (import (srfi srfi-9))
-
 (import (fibers channels))
-
+(import (fibers operations))
 (import (babelia thread))
 (import (babelia ulid))
 
@@ -18,9 +21,11 @@
     (let loop ((message (get-message channel)))
       (let ((thunk (car message))
             (return (cdr message)))
-        ;; execute thunk and send the returned value
+        ;; Execute thunk and send the returned value.  XXX: To be able
+        ;; to keep track of jobs, the input channel, called `return`,
+        ;; is put in itself. See pool-for-each-par-map.
         (let ((out (thunk)))
-          (put-message return out)))
+          (put-message return (cons return out))))
       (loop (get-message channel)))))
 
 (define-public (pool-init)
@@ -33,7 +38,34 @@
             (loop (- index 1))))
         (set! %channel channel))))
 
-(define-public (pool-apply thunk)
+(define (publish thunk)
   (let ((return (make-channel)))
     (put-message %channel (cons thunk return))
-    (get-message return)))
+    return))
+
+(define-public (pool-apply thunk)
+  "Execute THUNK in a worker thread.
+
+   Pause the calling fiber until the result is available."
+  (cdr (get-message (publish thunk))))
+
+;; TODO: Maybe add a timeout argument, in order to be able to display
+;; a nicer error.
+(define-public (pool-for-each-par-map sproc pproc lst)
+  "For each item of LST execute (PPROC item) in a worker thread, and
+   gather returned value with SPROC. SPROC is executed in the calling
+   fiber.
+
+   This a POSIX thread pool based n-for-each-par-map for fibers. It is
+   somewhat equivalent to:
+
+     (for-each SSPROC (map PPROC LST))
+
+   But in parallel and not blocking the main thread."
+  (let loop ((channels (map (lambda (item) (publish (lambda () (pproc item)))) lst)))
+    (unless (null? channels)
+      (match (perform-operation
+              (apply choice-operation (map get-operation channels))))
+        ((channel . value)
+         (sproc value)
+         (loop (remove (lambda (x) (eq? x channel)) channels))))))

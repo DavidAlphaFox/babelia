@@ -60,6 +60,7 @@
 
 (define stemmers-guardian (make-guardian))
 
+;; TODO: return a stem procedure
 (define make-stemmer
   (let ((proc (snowball-stemmer POINTER "sb_stemmer_new" POINTER POINTER)))
     (lambda (algorithm)
