@@ -24,8 +24,8 @@
 (import (rnrs bytevectors))
 (import (rnrs arithmetic bitwise))
 
+(import (babelia thread))
 
-(define-public thread-index (make-parameter #vu8(255 255)))
 
 (define /dev/urandom (open-input-file "/dev/urandom" #:binary #t))
 
