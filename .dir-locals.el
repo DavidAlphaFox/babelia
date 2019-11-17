@@ -2,5 +2,5 @@
 ((scheme-mode . ((eval . (progn
                            ;; example
                            (put 'with-directory 'scheme-indent-function 1)
-                           (put 'match 'scheme-indent-function 0)
+                           (put 'match 'scheme-indent-function 1)
                            (put 'with-connection 'scheme-indent-function 2))))))
