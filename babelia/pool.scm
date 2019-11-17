@@ -7,17 +7,21 @@
 
 (import (fibers channels))
 
+(import (babelia thread))
+(import (babelia ulid))
+
 
 (define %channel #f)
 
 (define (worker channel)
-  (let loop ((message (get-message channel)))
-    (let ((thunk (car message))
-          (return (cdr message)))
-      ;; execute thunk and send the returned value
-      (let ((out (thunk)))
-        (put-message return out)))
-    (loop (get-message channel))))
+  (parameterize ((thread-index (random-bytes 2)))
+    (let loop ((message (get-message channel)))
+      (let ((thunk (car message))
+            (return (cdr message)))
+        ;; execute thunk and send the returned value
+        (let ((out (thunk)))
+          (put-message return out)))
+      (loop (get-message channel)))))
 
 (define-public (pool-init)
   (if %channel
