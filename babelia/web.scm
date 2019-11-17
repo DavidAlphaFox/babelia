@@ -14,7 +14,7 @@
     (html
      (head
       (meta (@ (charset "utf-8")))
-      (title "culturia")
+      (title "babelia")
       (link (@ (rel "stylesheet") (href "/static/normalize.css")))
       (link (@ (rel "stylesheet") (href "/static/main.css"))))
      (body
