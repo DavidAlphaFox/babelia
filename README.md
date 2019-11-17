@@ -34,12 +34,13 @@ Wanna be search engine with federation support
 - [x] api stub
 - [x] pool of workers to execute blocking operations
 - [x] snowball stemmer bindings
+- [x] counter
 - [ ] index
   - [x] html2text,
   - [ ] replace anything that is not alphanumeric with a space, and
         filter out words strictly smaller than 2 or strictly bigger
         than 256,
-  - [ ] store each stem once in the inverted index,
+  - [ ] store each stem once in the index,
   - [ ] in the nstore, save url, title, preview, and bag of words.
   - [ ] every known stem is associated with a count, and sum to be
         able to compute tf-idf
