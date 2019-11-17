@@ -31,18 +31,20 @@ Wanna be search engine with federation support
 - [x] object store
 - [x] web server
 - [x] theme
-- [ ] api
-- [ ] thread pool
-- [ ] snowball stemmer bindings
+- [x] api stub
+- [x] pool of workers to execute blocking operations
+- [x] snowball stemmer bindings
 - [ ] index
-  - [ ] html2text,
+  - [x] html2text,
   - [ ] replace anything that is not alphanumeric with a space, and
         filter out words strictly smaller than 2 or strictly bigger
         than 256,
   - [ ] store each stem once in the inverted index,
   - [ ] in the nstore, save url, title, preview, and bag of words.
-  - [ ] every known stem is associated with a count, and sum
-  - [ ] every known word is associated with a count, and sum
+  - [ ] every known stem is associated with a count, and sum to be
+        able to compute tf-idf
+  - [ ] every known word is associated with a count, and sum to be
+        able to compute tf-idf
 - [ ] query
   - [ ] parse query: KEY WORD -MINUS
   - [ ] validate that query is not only negation,
