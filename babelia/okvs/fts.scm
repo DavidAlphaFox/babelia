@@ -4,21 +4,19 @@
 (import (srfi srfi-9))
 (import (babelia stemmer))
 
+(import (babelia bytevector))
+
 
 (define english (make-stemmer "english"))
 
 (define-record-type <fts>
-  (make-fts prefix engine thread-index for-each-par-map)
+  (make-fts prefix engine for-each-par-map)
   fts?
   (prefix fts-prefix)
   (engine fts-engine)
-  (thread-index %fts-thread-index)
   (for-each-par-map %fts-for-each-par-map))
 
 (define-public fts make-fts)
-
-(define (fts-thread-index fts)
-  ((%fts-thread-index fts)))
 
 (define (fts-for-each-par-map fts sproc pproc lst)
   ((%fts-pool-apply fts) thunk))
@@ -44,18 +42,20 @@
                  (list->string
                   (map maybe-space (string->list text))) #\space)))))
 
-(define %word-counter-subspace 0)
-(define %stem-counter-subspace 1)
-(define %stem-multimap-subspace 2)
-(define %text-map-subspace 3)
+(define %word-counter-subspace #vu8(0))
+(define %stem-counter-subspace #vu8(1))
+(define %stem-multimap-subspace #vu8(2))
+(define %text-mapping-subspace #vu8(3))
 
 (define (fts-stem-increment transaction fts ulid)
-  (let ((counter (counter (append (fts-prefix fts) (list %stem-counter-subspace))
+  (let ((counter (counter (bytevector-append (fts-prefix fts)
+                                             %stem-counter-subspace)
                           (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
 (define (fts-stem-append fts stem ulid)
-  (let ((multimap (multimap (append (fts-prefix fts) (list %stem-multimap-subspace))
+  (let ((multimap (multimap (bytevector-append (fts-prefix fts)
+                                               %stem-multimap-subspace)
                             (fts-engine fts))))
     (multimap-append transaction multimap stem ulid)))
 
@@ -64,6 +64,18 @@
                     (text->stems text))))
     (let loop ((stems stems))
       (unless (null? stems)
+        ;; XXX: if you look close enough, you will figure that
+        ;; okvs/multimap can do what okvs/counter does. That is,
+        ;; okvs/multimap can also count and serve as a counter.  The
+        ;; thing is that FDB does not allow to quickly count all the
+        ;; keys in a given range, that is why the okvs interface is
+        ;; what it is.  Also, we need fts-stem-count to be very fast
+        ;; to compute the discriminant stem at query time.  I think,
+        ;; it is faster to compute the sum of values of an okvs/map as
+        ;; used in okvs/counter that is at most 2^16 values to sum,
+        ;; than count the number of keys in a okvs/multimap that might
+        ;; be bigger that 2^16.  All that explains, the duplicate work
+        ;; in the following code:
         (fts-stem-increment transaction fts (car stems))
         (fts-stem-append fts (car stems) ulid)
         (loop (cdr stems))))
@@ -76,8 +88,15 @@
             (list->string
              (map maybe-space (string->list text))) #\space))))
 
+(define (fts-text-store transaction ulid text)
+  (let ((mapping (mapping (bytevector-append (fts-prefix fts)
+                                             %text-mapping-subspace)
+                          (fts-engine fts))))
+    (mapping-set transaction mapping ulid (object->ulid transaction object text))))
+
 (define (fts-word-increment transaction fts ulid)
-  (let ((counter (counter (append (fts-prefix fts) (list %word-counter-subspace))
+  (let ((counter (counter (bytevector-append (fts-prefix fts)
+                                             %word-counter-subspace)
                           (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 

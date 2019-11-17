@@ -35,11 +35,12 @@ Wanna be search engine with federation support
   - [x] wiredtiger backend
   - [x] nstore (srfi-168)
   - [x] [ulid](https://github.com/ulid/spec)
+  - [x] make `thread-index` a global
   - [ ] move okvs abstractions inside okvs directory (fts, counter,
         nstore, ulid...)
-  - [ ] memory backend, requires r7rs (or redblack-tree)
+  - [ ] memory backend, requires r7rs or standalone redblack-tree
   - [ ] foundationdb backend
-  - [ ] ulid store, rename object.scm to ustore.scm
+  - [ ] ulid store, rename object.scm to okvs/ustore.scm
   - [ ] map
   - [ ] multimap
   - [ ] counter, requires map and thread-index
