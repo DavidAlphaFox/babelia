@@ -22,46 +22,52 @@ Wanna be search engine with federation support
 - [x] ~~srfi-146 (mappings hash)~~, use
       [fash](https://www.wingolog.org/pub/fash.scm)
 - [x] srfi-158 (generators)
-- [x] srfi-167 (okvs)
-  - [x] `pack` and `unpack`
-  - [x] `<engine>` type class object
-  - [x] wiredtiger backend
-- [x] srfi-168 (nstore)
-- [x] [ulid](https://github.com/ulid/spec)
-- [x] object store
 - [x] web server
 - [x] theme
 - [x] api stub
 - [x] pool of workers to execute blocking operations
 - [x] snowball stemmer bindings
-- [x] counter
 - [x] html2text
-- full-text search
-  - index
-    - [ ] replace anything that is not alphanumeric with a space, and
-          filter out words strictly smaller than 2 or strictly bigger
-          than 256,
-    - [ ] store each stem once in the index,
+- [ ] okvs abstractions
+  - [x] okvs (srfi-167)
+  - [x] `pack` and `unpack`
+  - [x] `<engine>` type class object
+  - [x] wiredtiger backend
+  - [x] nstore (srfi-168)
+  - [x] [ulid](https://github.com/ulid/spec)
+  - [ ] move okvs abstractions inside okvs directory (fts, counter,
+        nstore, ulid...)
+  - [ ] memory backend, requires r7rs (or redblack-tree)
+  - [ ] foundationdb backend
+  - [ ] ulid store, rename object.scm to ustore.scm
+  - [ ] map
+  - [ ] multimap
+  - [ ] counter, requires map and thread-index
+  - [ ] rankedset
+  - [ ] full-text search
+    - [ ] index
+      - [x] replace anything that is not alphanumeric with a space, and
+            filter out words strictly smaller than 2 or strictly bigger
+            than 256,
+      - [x] store each stem once in the index,
 
-    - [ ] every known stem is associated with a count, and sum to be
-          able to compute tf-idf,
-    - [ ] every known word is associated with a count, and sum to be
-          able to compute tf-idf.
-  - query
-    - [ ] parse query: KEY WORD -MINUS,
-    - [ ] validate that query is not only negation,
-    - [ ] seed with most discriminant stem,
-    - [ ] in parallel, compute score and cache,
-    - [ ] keep top 30 results (no pagination),
-    - [ ] count queries (analytics that will later help drive the
-          crawler?),
-    - [ ] query results (LRU?) cache.
+      - [x] every known stem is associated with a count, and sum to be
+            able to compute tf-idf,
+      - [x] every known word is associated with a count, and sum to be
+            able to compute tf-idf.
+    - [ ] query
+      - [ ] parse query: KEY WORD -MINUS,
+      - [ ] validate that query is not only negation,
+      - [ ] seed with most discriminant stem,
+      - [ ] in parallel, compute score and cache,
+      - [ ] keep top 30 results (no pagination),
+      - [ ] count queries (analytics that will later help drive the
+            crawler?),
+      - [ ] query results (LRU?) cache.
 - [ ] in the nstore, save ulid, url, title, and preview
-
 - [ ] logging
 - [ ] guix package definition
-- [ ] move okvs abstractions inside okvs directory (fts, counter,
-      nstore, ulid...)
+
 
 Future documentation:
 
@@ -73,8 +79,7 @@ Future documentation:
 
 ## TODO
 
-- [ ] okvs memory backend
-- [ ] okvs foundationdb backend
+- [ ] move to R7RS
 - [ ] wet/wat/warc file crawler
 - [ ] wet/wat/warc file consumer
 - [ ] search pad
@@ -82,5 +87,4 @@ Future documentation:
 - [ ] more-like-this
 - [ ] sensimark
 - [ ] federation
-- [ ] foundationdb bindings
-- [ ] move to R7RS
+- [ ] nstore's prefix: make it a bytevecor
