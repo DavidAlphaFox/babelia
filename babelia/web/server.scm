@@ -224,8 +224,7 @@ on the procedure being called at any particular time."
     (match (accept socket (logior SOCK_NONBLOCK SOCK_CLOEXEC))
       ((client . sockaddr)
        (spawn-fiber (lambda ()
-                      (client-loop client handler))
-                    #:parallel? #t)
+                      (client-loop client handler)))
        (loop)))))
 
 (define (call-with-sigint thunk cvar)
@@ -280,5 +279,7 @@ before sending back to the client."
        (run-fibers
         (lambda ()
           (spawn-fiber (lambda () (socket-loop socket handler)))
-          (wait finished?))))
+          (wait finished?))
+        #:parallelism 1
+        #:hz 0))
      finished?)))
