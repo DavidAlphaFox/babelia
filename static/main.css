@@ -1,0 +1,257 @@
+@font-face {
+  font-family: "EB Garamond";
+  src: url("EBGaramond12-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Linux Biolinum";
+  src: url("LinBiolinum_Rah.ttf");
+}
+
+@font-face {
+  font-family: Hack;
+  src: url("Hack-Regular.ttf");
+}
+
+body {
+  font-family: "EB Garamond", serif;
+  background: url("graphy.png");
+  font-size: 24px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Linux Biolinum", sans;
+}
+
+code, pre {
+  font-family: Hack, mono, monospace;
+  font-size: 0.7em;
+}
+
+figure {
+  text-align: center;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left: 10px solid #ccc;
+  margin: 1.5em 10px;
+  padding: 0.5em 10px;
+  quotes: "\201C""\201D""\2018""\2019";
+}
+
+blockquote:before {
+  color: #ccc;
+  content: open-quote;
+  font-size: 4em;
+  line-height: 0.1em;
+  margin-right: 0.25em;
+  vertical-align: -0.4em;
+}
+
+blockquote > a > p {
+  display: inline;
+}
+
+blockquote > a {
+  color: black;
+  display: block;
+}
+
+pre {
+  background: hsla(0, 0%, 0%, 0.7);
+  border-left: 10px solid hsla(0, 0%, 0%, 0.4);
+  margin: 1.5em 10px;
+  padding: 0.5em 10px;
+  color: white;
+}
+
+#header {
+  background: url("gears-up.png");
+  background-position: bottom;
+  background-repeat: repeat-x;
+  padding: 15px;
+  padding-bottom: 180px;
+  padding-top: 50px;
+  text-align: center;
+}
+
+#header h1 {
+  margin: 0px;
+  line-height: 1em;
+}
+
+#header h2 {
+  margin: 0px;
+  line-height: 1em;
+}
+
+#wrapper {
+  padding: 15px 30px;
+  background: white;
+  line-height: 1.5em;
+  text-align: justify;
+}
+
+#container {
+  max-width: 1000px;
+  margin: auto;
+}
+
+#footer {
+  background: url("gears-down.png");
+  background-position: top;
+  background-repeat: repeat-x;
+  padding: 15px;
+  padding-top: 150px;
+  padding-bottom: 100px;
+  text-align: right;
+}
+
+a:link, a:visited, a:active {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+form p {
+  margin: 0px;
+}
+
+form > div.form-field.error {
+  color: rgb(200, 10, 10);
+}
+
+form > div.form-field > p:first-child {
+  display: flex;
+  padding: 10px 50px;
+  margin-bottom: 0px;
+  padding-bottom: 0px;
+}
+
+form > div.form-field > p:first-child > label {
+  margin-right: 10px;
+  min-width: 200px;
+  text-align: right;
+}
+
+form > div.form-field > p.error {
+  padding: 5px 50px;
+  margin: 0px;
+  font-size: 0.7em;
+  text-align: right;
+  line-height: 1em;
+}
+
+form input[type="text"],
+form input[type="password"] {
+  width: 100%;
+  border: 1px solid hsla(0, 0%, 70%, 1);
+  border-radius: 2px;
+  background: white;
+  padding: 5px 10px;
+}
+
+form .error input[type="text"],
+form .error input[type="password"] {
+  box-shadow: 0px 0px 2px rgb(200, 10, 10);
+  border: 1px solid rgb(200, 10, 10);
+}
+
+form > div.form-field > p.form-control {
+  display: flex;
+  justify-content: right;
+}
+
+#navigation {
+  display: flex;
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  padding: 25px 50px;
+  margin-bottom: 25px;
+}
+
+#query {
+  border: 0px solid black;
+  flex-grow: 2;
+  box-sizing: border-box;
+  font-family: hack, mono, monospace;
+}
+
+span.tag {
+  border: 1px solid hsla(0, 0%, 20%, 1);
+  border-radius: 2px;
+  padding: 3px 5px;
+  margin-right: 5px;
+  font-size: 0.9em;
+}
+
+/* index */
+
+#container.overview > a.overview-item {
+  margin: 30px 0px;
+  padding: 15px 30px;
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  display: block;
+  cursor: pointer;
+}
+
+#container.overview > .overview-item.post > h2 {
+  margin: 0px;
+  line-height: 1em;
+}
+
+#container.overview > .overview-item.post > p {
+  margin: 0px;
+  margin-top: 8px;
+  line-height: 1em;
+  font-weight: 0.8em;
+  color: hsla(0, 0%, 20%, 1);
+}
+
+#container.overview > .overview-item.message > p {
+  margin: 0px;
+  margin-top: 8px;
+  line-height: 1em;
+  font-weight: 0.8em;
+  color: hsla(0, 0%, 20%, 1);
+}
+
+#container.overview > .overview-item.message > p:first-child {
+  font-weight: 1em;
+  color: black;
+}
+
+#container.overview > .overview-item.link > p {
+  margin: 0px;
+  margin-top: 8px;
+  line-height: 1em;
+  font-weight: 0.8em;
+  color: hsla(0, 0%, 20%, 1);
+}
+
+#container.overview > .overview-item.link > p:first-child {
+  font-weight: 1em;
+  color: black;
+}
+
+#container.overview > .overview-item.link > p.overview-link-url {
+  font-weight: 1em;
+  color: green;
+}
+
+#container.overview > .overview-item.commit > p {
+  margin: 0px;
+  margin-top: 8px;
+  line-height: 1em;
+  font-weight: 0.8em;
+  color: hsla(0, 0%, 20%, 1);
+}
+
+#container.overview > .overview-item.commit > p:first-child {
+  font-weight: 1em;
+  color: black;
+}

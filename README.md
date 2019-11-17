@@ -29,7 +29,9 @@ Wanna be search engine with federation support
 - [x] srfi-168 (nstore)
 - [x] [ulid](https://github.com/ulid/spec)
 - [x] object store
-- [ ] web server + theme + api
+- [x] web server
+- [x] theme
+- [ ] api
 - [ ] thread pool
 - [ ] snowball stemmer bindings
 - [ ] index
