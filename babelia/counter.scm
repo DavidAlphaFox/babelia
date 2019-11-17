@@ -35,7 +35,8 @@
   (engine counter-engine))
 
 
-(define-public counter make-counter)
+(define-public (counter prefix engine)
+  (make-counter (apply engine-pack engine prefix) engine))
 
 (define-public (counter-increment transaction counter ulid)
   (let* ((engine (counter-engine counter))
