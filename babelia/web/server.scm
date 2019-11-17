@@ -29,7 +29,7 @@
 ;;;
 ;;; Code:
 
-(define-module (fibers web server)
+(define-module (babelia web server)
   #:use-module (fibers)
   #:use-module (fibers conditions)
   #:use-module (rnrs bytevectors)
