@@ -35,26 +35,30 @@ Wanna be search engine with federation support
 - [x] pool of workers to execute blocking operations
 - [x] snowball stemmer bindings
 - [x] counter
-- [ ] index
-  - [x] html2text,
-  - [ ] replace anything that is not alphanumeric with a space, and
-        filter out words strictly smaller than 2 or strictly bigger
-        than 256,
-  - [ ] store each stem once in the index,
-  - [ ] in the nstore, save url, title, preview, and bag of words.
-  - [ ] every known stem is associated with a count, and sum to be
-        able to compute tf-idf
-  - [ ] every known word is associated with a count, and sum to be
-        able to compute tf-idf
-- [ ] query
-  - [ ] parse query: KEY WORD -MINUS
-  - [ ] validate that query is not only negation,
-  - [ ] seed with most discriminant stem,
-  - [ ] in parallel, compute score and cache,
-  - [ ] keep top 30 results (no pagination),
-  - [ ] count queries.
+- [x] html2text,
+- [ ] in the nstore, save ulid, url, title, and preview
+- full-text search
+  - index
+    - [ ] replace anything that is not alphanumeric with a space, and
+          filter out words strictly smaller than 2 or strictly bigger
+          than 256,
+    - [ ] store each stem once in the index,
+
+    - [ ] every known stem is associated with a count, and sum to be
+          able to compute tf-idf
+    - [ ] every known word is associated with a count, and sum to be
+          able to compute tf-idf
+  - query
+    - [ ] parse query: KEY WORD -MINUS
+    - [ ] validate that query is not only negation,
+    - [ ] seed with most discriminant stem,
+    - [ ] in parallel, compute score and cache,
+    - [ ] keep top 30 results (no pagination),
+- [ ] count queries.
 - [ ] logging
 - [ ] guix package definition
+- [ ] move okvs abstractions inside okvs directory (fts, counter,
+      nstore, ulid...)
 
 Future documentation:
 
