@@ -8,11 +8,11 @@ Wanna be search engine with federation support
 
 ## Dependencies
 
-- guile 2.2 (but tested with 2.9.4)
+- guile 2.9.4
 - guile-fibers 1.0.0
 - guile-gcrypt 0.2.0
 - wiredtiger 3.0.0
-- snowball stemmer
+- snowball stemmer, see [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## v0.1.0
 
