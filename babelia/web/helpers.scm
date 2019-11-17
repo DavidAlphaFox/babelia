@@ -35,6 +35,11 @@ example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
           (lambda (port)
             (sxml->html sxml port))))
 
+(define-public (scheme->response scheme)
+  (values '((content-type . (application/scheme)))
+          (lambda (port)
+            (write scheme port))))
+
 (define-public (forbidden)
   (values (build-response #:code 403)
           "Forbidden"))

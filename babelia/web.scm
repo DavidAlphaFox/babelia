@@ -29,9 +29,13 @@
   (sxml->response
    (template "index" "Hello, world!")))
 
+(define (route/api/status)
+  (scheme->response "OK"))
+
 (define (router request body)
   (match (cons (request-method request) (request-path-components request))
     ('(GET) (route/index))
+    ('(GET "api" "status") (route/api/status))
     (('GET "static" path ...) (render-static-asset path))
     (_ (not-found (uri-path (request-uri request))))))
 
