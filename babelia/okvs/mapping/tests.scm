@@ -9,7 +9,7 @@
 
 (define engine (make-default-engine))
 
-(define mapping (make-mapping engine #vu8(13 37)))
+(define mapping (make-mapping engine 'test-mapping))
 
 (define-public test-00
   (test  ;; ref unknown key
