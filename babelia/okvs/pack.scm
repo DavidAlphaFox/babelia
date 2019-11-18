@@ -169,12 +169,16 @@
      ((and (number? value) (exact? value) (< value 0)) (%%pack-negative-integer value accumulator))
      ((and (number? value) (exact? value) (= value 0)) (accumulator *int-zero-code*))
      ((and (number? value) (exact? value) (> value 0)) (%%pack-positive-integer value accumulator))
+     ((pair? value)
+      (accumulator *nested-code*)
+      (%%pack-bytes (apply pack value) accumulator))
      ;;
      (else (error 'pack "unsupported data type" value)))))
 
 (define (%pack args accumulator)
   (for-each (%%pack accumulator) args))
 
+;; TODO: remove the rest argument and pass it as list + rationale.
 (define (pack . args)
   (let ((accumulator (bytevector-accumulator)))
     (%pack args accumulator)
@@ -281,5 +285,9 @@
            ((= code *neg-int-start*)
             (call-with-values (lambda () (unpack-bigish-negative-integer bv code position))
               (lambda (value position) (loop position (cons value out)))))
+           ((= code *nested-code*)
+            (call-with-values (lambda () (unpack-bytes bv (+ position 1)))
+              (lambda (value position)
+                (loop position (cons (unpack value) out)))))
            ;; oops
            (else (error 'unpack "unsupported code" code)))))))
