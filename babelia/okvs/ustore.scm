@@ -1,3 +1,9 @@
+;; This is a two-way mapping between scheme objects and an ulid.  This
+;; is meant to save space and speed up queries.  It rely on the sha256
+;; as an intermediate internal representation.
+;;
+;; TODO: use okvs/mapping
+;;
 (define-module (babelia okvs ustore))
 
 (import (srfi srfi-9))
@@ -9,23 +15,22 @@
 (import (babelia okvs engine))
 
 
-(define %sha256->value #vu8(0))
+(define %sha256->object #vu8(0))
 (define %sha256->ulid #vu8(1))
 (define %ulid->sha256 #vu8(2))
 
 
 (define-record-type <ustore>
-  (%ustore engine prefix)
+  (make-ustore engine prefix)
   ustore?
   (engine ustore-engine)
   (prefix ustore-prefix))
 
-(define-public (ustore engine prefix)
-  (%ustore engine prefix))
+(export make-ustore)
 
-(define-public (object->ulid transaction ustore value)
+(define-public (object->ulid transaction ustore object)
   (let ((engine (ustore-engine ustore)))
-    (let* ((value (engine-pack engine value))
+    (let* ((value (engine-pack engine object))
            (hash (sha256 value))
            (key (bytevector-append (ustore-prefix ustore)
                                     %sha256->ulid
@@ -38,7 +43,7 @@
             (let ((out (ulid)))
               (engine-set! engine transaction
                            (bytevector-append (ustore-prefix ustore)
-                                               %sha256->value
+                                               %sha256->object
                                                hash)
                            value)
 
@@ -70,6 +75,6 @@
        ;; there is a hash, there must be a value
        (let ((value (engine-ref engine transaction
                                 (bytevector-append (ustore-prefix ustore)
-                                                    %sha256->value
+                                                    %sha256->object
                                                     hash))))
          (car (engine-unpack engine value)))))))
