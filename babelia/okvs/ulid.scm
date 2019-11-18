@@ -18,7 +18,7 @@
 ;;
 ;; AFAIU, it is not useful to share thread-index value across reboots.
 ;;
-(define-module (babelia ulid))
+(define-module (babelia okvs ulid))
 
 (import (ice-9 binary-ports))
 (import (rnrs bytevectors))

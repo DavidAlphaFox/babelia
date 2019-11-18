@@ -1,51 +1,33 @@
-(define-module (babelia object))
+(define-module (babelia okvs ustore))
 
 (import (srfi srfi-9))
 (import (rnrs bytevectors))
 
 (import (gcrypt hash))
-
-(import (babelia ulid))
+(import (babelia bytevector))
+(import (babelia okvs ulid))
 (import (babelia okvs engine))
 
-
-;; helper
-
-(define (bytevector-append . bvs)
-  (let* ((total (let loop ((bvs bvs)
-                           (out 0))
-                  (if (null? bvs)
-                      out
-                      (loop (cdr bvs) (+ (bytevector-length (car bvs)) out)))))
-         (out (make-bytevector total)))
-    (let loop ((bvs bvs)
-               (index 0))
-      (unless (null? bvs)
-        (bytevector-copy! (car bvs) 0 out index (bytevector-length (car bvs)))
-        (loop (cdr bvs) (+ index (bytevector-length (car bvs))))))
-    out))
-
-;;
 
 (define %sha256->value #vu8(0))
 (define %sha256->ulid #vu8(1))
 (define %ulid->sha256 #vu8(2))
 
-;; XXX: `prefix` must a list (like in nstore)
-(define-record-type <object>
-  (%object engine prefix)
-  object?
-  (engine object-engine)
-  (prefix object-prefix))
 
-(define-public (object engine prefix)
-  (%object engine (engine-pack engine prefix)))
+(define-record-type <ustore>
+  (%ustore engine prefix)
+  ustore?
+  (engine ustore-engine)
+  (prefix ustore-prefix))
 
-(define (object->ulid transaction object value)
-  (let ((engine (object-engine object)))
+(define-public (ustore engine prefix)
+  (%ustore engine prefix))
+
+(define-public (object->ulid transaction ustore value)
+  (let ((engine (ustore-engine ustore)))
     (let* ((value (engine-pack engine value))
            (hash (sha256 value))
-           (key (bytevector-append (object-prefix object)
+           (key (bytevector-append (ustore-prefix ustore)
                                     %sha256->ulid
                                     hash)))
       ;; try to get ulid from sha256->ulid subspace
@@ -55,39 +37,39 @@
             ;; otherwise, create a new identifier and store it.
             (let ((out (ulid)))
               (engine-set! engine transaction
-                           (bytevector-append (object-prefix object)
+                           (bytevector-append (ustore-prefix ustore)
                                                %sha256->value
                                                hash)
                            value)
 
               (engine-set! engine transaction
-                           (bytevector-append (object-prefix object)
+                           (bytevector-append (ustore-prefix ustore)
                                                %sha256->ulid
                                                hash)
                            out)
 
               (engine-set! engine transaction
-                           (bytevector-append (object-prefix object)
+                           (bytevector-append (ustore-prefix ustore)
                                                %ulid->sha256
                                                out)
                            hash)
 
               out))))))
 
-(define (ulid->object transaction object ulid)
+(define-public (ulid->object transaction ustore ulid)
   "Retrieve the object with the given ULID. Otherwise return #f"
-  (let ((engine (object-engine object)))
+  (let ((engine (ustore-engine ustore)))
     ;; try to find the hash
     (and=>
      (engine-ref engine
                  transaction
-                 (bytevector-append (object-prefix object)
+                 (bytevector-append (ustore-prefix ustore)
                                      %ulid->sha256
                                      ulid))
      (lambda (hash)
        ;; there is a hash, there must be a value
        (let ((value (engine-ref engine transaction
-                                (bytevector-append (object-prefix object)
+                                (bytevector-append (ustore-prefix ustore)
                                                     %sha256->value
                                                     hash))))
          (car (engine-unpack engine value)))))))

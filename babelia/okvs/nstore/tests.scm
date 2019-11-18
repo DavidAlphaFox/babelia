@@ -20,13 +20,13 @@
 ;;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 ;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 ;;; OTHER DEALINGS IN THE SOFTWARE.
-(define-module (babelia nstore tests))
+(define-module (babelia okvs nstore tests))
 
 (import (only (rnrs) guard error))
 
 (import (babelia fash))
 (import (babelia generator))
-(import (babelia nstore))
+(import (babelia okvs nstore))
 (import (babelia okvs engine))
 (import (babelia okvs wiredtiger))
 (import (babelia testing))

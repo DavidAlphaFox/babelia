@@ -20,7 +20,7 @@
 ;;
 ;; TODO: it is missing the total count, to be able to compute
 ;; frequency.
-(define-module (babelia counter))
+(define-module (babelia okvs counter))
 
 (import (srfi srfi-9))
 (import (only (rnrs) eof-object?))
