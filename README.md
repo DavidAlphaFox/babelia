@@ -45,7 +45,7 @@ Wanna be search engine with federation support
   - [x] pack: support nested list
   - [x] multimap
   - [x] counter, requires mapping and thread-index
-  - [ ] crawl scheme world.
+  - [x] crawl scheme world
   - [ ] full-text search
     - [ ] index
       - [x] replace anything that is not alphanumeric with a space, and
@@ -61,7 +61,8 @@ Wanna be search engine with federation support
       - [ ] parse query: KEY WORD -MINUS,
       - [ ] validate that query is not only negation,
       - [ ] seed with most discriminant stem,
-      - [ ] in parallel, compute score against bag of word,
+      - [ ] in parallel, compute score against bag of word
+            (term-frequency inverse-document-frequency)
       - [ ] keep top 30 results (no pagination),
 - [ ] in the nstore, save ulid, url, title, and preview
 - [ ] logging
@@ -89,6 +90,7 @@ Future documentation:
 - [ ] nstore's prefix: make it a bytevecor
 - [ ] okvs memory backend, requires r7rs or standalone redblack-tree
 - [ ] okvs foundationdb backend
+- [ ] okvs sqlite backend
 - [ ] rankedset
 - [ ] okvs/pack: optimize algorithm of nested list to rely on a single
       pass
