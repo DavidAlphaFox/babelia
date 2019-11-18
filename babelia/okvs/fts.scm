@@ -54,7 +54,7 @@
                             (fts-engine fts))))
     (multimap-add transaction multimap stem ulid)))
 
-(define (fts-index-stem transaction fts text ulid)
+(define (fts-index-stem transaction fts text uid)
   (let ((stems (map (lambda (stem) (object->ulid transaction object stem))
                     (text->stems text))))
     (let loop ((stems stems))
@@ -72,7 +72,7 @@
         ;; be bigger that 2^16.  All that explains, the duplicate work
         ;; in the following code:
         (fts-stem-increment transaction fts (car stems))
-        (fts-stem-add fts (car stems) ulid)
+        (fts-stem-add fts (car stems) uid)
         (loop (cdr stems))))
     (not (null? stems))))
 
@@ -83,27 +83,33 @@
             (list->string (map maybe-space (string->list (string-downcase text))))
             #\space))))
 
-(define (fts-text-store transaction ulid text)
+(define (fts-text-store transaction uid text)
   (let ((mapping (mapping (append (fts-prefix fts) %subspace-mapping-text)
                           (fts-engine fts))))
-    (mapping-set transaction mapping ulid (object->ulid transaction object text))))
+    ;; TEXT is stored as-is and there is no ulid->sha256->value
+    ;; indirections to improve query-time performance.
+
+    ;; TODO: massage TEXT to a representation that is perfect for
+    ;; query time.
+    (mapping-set transaction mapping uid text)))
 
 (define (fts-word-increment transaction fts ulid)
   (let ((counter (counter (append (fts-prefix fts) %subspace-counter-word)
                           (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
-(define (fts-index-text transaction text ulid)
+(define (fts-index-text transaction text uid)
   ;; store raw TEXT
-  (fts-text-store transaction ulid text)
+  (fts-text-store transaction uid text)
   ;; store WORDS count to compute IDF
   (let ((words (map (lambda (word) (object->ulid transaction object word))
                     (text->words text))))
     (for-each (lambda (word) (fts-word-increment transaction fts word) words))))
 
-(define-public (fts-index transaction fts ulid text)
-  (when (fts-index-stem transaction fts text ulid)
-    (fts-index-text transaction fts text ulid)))
+(define-public (fts-index transaction fts uid text)
+  "Index TEXT string with UID as an identifier."
+  (when (fts-index-stem transaction fts text uid)
+    (fts-index-text transaction fts text uid)))
 
 (define-public (fts-query fts query)
   (when #f #f))

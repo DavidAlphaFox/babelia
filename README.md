@@ -45,6 +45,7 @@ Wanna be search engine with federation support
   - [x] pack: support nested list
   - [x] multimap
   - [x] counter, requires mapping and thread-index
+  - [ ] crawl scheme world.
   - [ ] full-text search
     - [ ] index
       - [x] replace anything that is not alphanumeric with a space, and
