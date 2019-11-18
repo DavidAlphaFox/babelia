@@ -3,6 +3,9 @@
 (import (rnrs bytevectors))
 
 
+(re-export bytevector=?)
+(re-export bytevector-length)
+
 (define-public (bytevector-append . bvs)
   (let* ((total (let loop ((bvs bvs)
                            (out 0))
