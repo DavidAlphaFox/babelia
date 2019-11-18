@@ -7,7 +7,7 @@ check: ## Run tests
 # @echo "\033[95m\n\nYou may now run 'make lint'.\n\033[0m"
 
 todo: ## Things that should be done
-	@grep -nR --color=always TODO hoply.py
+	@grep -nR --color=always --after-context=4 TODO .
 
 xxx: ## Things that require attention
-	@grep -nR --color=always --before-context=2  --after-context=2 XXX hoply.py
+	@grep -nR --color=always --after-context=4 XXX .
