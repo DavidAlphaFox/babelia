@@ -16,7 +16,7 @@
   (for-each-par-map %fts-for-each-par-map))
 
 (define (fts-for-each-par-map fts sproc pproc lst)
-  ((%fts-for-each-par-map fts) thunk))
+  ((%fts-for-each-par-map fts) sproc pproc lst))
 
 (define ALPHANUM (string->list "0123456789abcdefghijklmnopqrstuvwxyz"))
 
