@@ -445,7 +445,6 @@
     ;; increment first byte, reverse and return the bytevector
     (u8-list->bytevector (reverse (cons (+ 1 (car bytes)) (cdr bytes))))))
 
-
 (define (okvs-range-remove! transaction start-key start-include? end-key end-include?)
   (let ((generator (okvs-range transaction start-key start-include? end-key end-include?)))
     (let loop ((pair (generator)))
@@ -453,7 +452,6 @@
         (let ((key (car pair)))
           (okvs-delete! transaction key)
           (loop (generator)))))))
-
 
 (define-public (okvs-prefix-range transaction prefix . config)
   (apply okvs-range transaction prefix #t (strinc prefix) #f config))
