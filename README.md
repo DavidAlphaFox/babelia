@@ -60,11 +60,8 @@ Wanna be search engine with federation support
       - [ ] parse query: KEY WORD -MINUS,
       - [ ] validate that query is not only negation,
       - [ ] seed with most discriminant stem,
-      - [ ] in parallel, compute score and cache,
+      - [ ] in parallel, compute score against bag of word,
       - [ ] keep top 30 results (no pagination),
-      - [ ] count queries (analytics that will later help drive the
-            crawler?),
-      - [ ] query results (LRU?) cache.
 - [ ] in the nstore, save ulid, url, title, and preview
 - [ ] logging
 - [ ] guix package definition
