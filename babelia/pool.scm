@@ -22,8 +22,8 @@
       (let ((thunk (car message))
             (return (cdr message)))
         ;; Execute thunk and send the returned value.  XXX: To be able
-        ;; to keep track of jobs, the input channel, called `return`,
-        ;; is put in itself. See pool-for-each-par-map.
+        ;; to keep track of jobs, the channel called `return`, is put
+        ;; in itself.  See procedure pool-for-each-par-map.
         (let ((out (thunk)))
           (put-message return (cons return out))))
       (loop (get-message channel)))))
@@ -49,6 +49,10 @@
    Pause the calling fiber until the result is available."
   (cdr (get-message (publish thunk))))
 
+(define (select channels)
+  (perform-operation
+   (apply choice-operation (map get-operation channels))))
+
 ;; TODO: Maybe add a timeout argument, in order to be able to display
 ;; a nicer error.
 (define-public (pool-for-each-par-map sproc pproc lst)
@@ -61,11 +65,11 @@
 
      (for-each SSPROC (map PPROC LST))
 
-   But in parallel and not blocking the main thread."
+   But applications of PPROC happens in parallel and waiting for new
+   values is not blocking the main thread."
   (let loop ((channels (map (lambda (item) (publish (lambda () (pproc item)))) lst)))
     (unless (null? channels)
-      (match (perform-operation
-              (apply choice-operation (map get-operation channels))))
+      (match (select channels)
         ((channel . value)
          (sproc value)
-         (loop (remove (lambda (x) (eq? x channel)) channels))))))
+         (loop (remove (lambda (x) (eq? x channel)) channels)))))))

@@ -4,9 +4,8 @@
 (import (srfi srfi-9))
 (import (babelia stemmer))
 
-(import (babelia bytevector))
 
-
+;; TODO: i18n
 (define english (make-stemmer "english"))
 
 (define-record-type <fts>
@@ -16,12 +15,10 @@
   (engine fts-engine)
   (for-each-par-map %fts-for-each-par-map))
 
-(define-public fts make-fts)
-
 (define (fts-for-each-par-map fts sproc pproc lst)
-  ((%fts-pool-apply fts) thunk))
+  ((%fts-for-each-par-map fts) thunk))
 
-(define ALPHANUM (string->list "qwertyuiopasdfghjklzxcvbnm0123456789"))
+(define ALPHANUM (string->list "0123456789abcdefghijklmnopqrstuvwxyz"))
 
 (define (maybe-space char)
   (if (member char ALPHANUM)
@@ -39,32 +36,30 @@
    (map (lambda (word) (stem english word))
         (filter (compose not sane?)
                 (string-split
-                 (list->string
-                  (map maybe-space (string->list text))) #\space)))))
+                 (list->string (map maybe-space (string->list (string-downcase text))))
+                 #\space)))))
 
-(define %word-counter-subspace #vu8(0))
-(define %stem-counter-subspace #vu8(1))
-(define %stem-multimap-subspace #vu8(2))
-(define %text-mapping-subspace #vu8(3))
+(define %subspace-counter-word '(0))
+(define %subspace-counter-stem '(1))
+(define %subspace-multimap-stem '(2))
+(define %subspace-mapping-text '(3))
 
 (define (fts-stem-increment transaction fts ulid)
-  (let ((counter (counter (bytevector-append (fts-prefix fts)
-                                             %stem-counter-subspace)
+  (let ((counter (counter (append (fts-prefix fts) %subspace-counter-stem)
                           (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
-(define (fts-stem-append fts stem ulid)
-  (let ((multimap (multimap (bytevector-append (fts-prefix fts)
-                                               %stem-multimap-subspace)
+(define (fts-stem-add fts stem ulid)
+  (let ((multimap (multimap (append (fts-prefix fts) %subspace-multimap-stem)
                             (fts-engine fts))))
-    (multimap-append transaction multimap stem ulid)))
+    (multimap-add transaction multimap stem ulid)))
 
 (define (fts-index-stem transaction fts text ulid)
   (let ((stems (map (lambda (stem) (object->ulid transaction object stem))
                     (text->stems text))))
     (let loop ((stems stems))
       (unless (null? stems)
-        ;; XXX: if you look close enough, you will figure that
+        ;; XXX: If you look close enough, you will figure that
         ;; okvs/multimap can do what okvs/counter does. That is,
         ;; okvs/multimap can also count and serve as a counter.  The
         ;; thing is that FDB does not allow to quickly count all the
@@ -77,7 +72,7 @@
         ;; be bigger that 2^16.  All that explains, the duplicate work
         ;; in the following code:
         (fts-stem-increment transaction fts (car stems))
-        (fts-stem-append fts (car stems) ulid)
+        (fts-stem-add fts (car stems) ulid)
         (loop (cdr stems))))
     (not (null? stems))))
 
@@ -85,18 +80,16 @@
   (uniquify
    (filter (compose not sane?)
            (string-split
-            (list->string
-             (map maybe-space (string->list text))) #\space))))
+            (list->string (map maybe-space (string->list (string-downcase text))))
+            #\space))))
 
 (define (fts-text-store transaction ulid text)
-  (let ((mapping (mapping (bytevector-append (fts-prefix fts)
-                                             %text-mapping-subspace)
+  (let ((mapping (mapping (append (fts-prefix fts) %subspace-mapping-text)
                           (fts-engine fts))))
     (mapping-set transaction mapping ulid (object->ulid transaction object text))))
 
 (define (fts-word-increment transaction fts ulid)
-  (let ((counter (counter (bytevector-append (fts-prefix fts)
-                                             %word-counter-subspace)
+  (let ((counter (counter (append (fts-prefix fts) %subspace-counter-word)
                           (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
