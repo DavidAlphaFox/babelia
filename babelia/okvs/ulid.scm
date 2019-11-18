@@ -45,13 +45,14 @@
        (round (/ (cdr seconds+microseconds) (expt 10 3))))))
 
 (define (pack integer)
-  "pack INTEGER into a 5 bytes big endian"
-  (let ((out (make-bytevector 5)))
+  "pack INTEGER into a 6 bytes big endian"
+  (define count-bytes 6)
+  (let ((out (make-bytevector count-bytes)))
     (let loop ((index 0))
-      (unless (= index 5)
+      (unless (= index count-bytes)
         (bytevector-u8-set! out
                             index (bitwise-and
-                                   (ash integer (- (* (- 4 index) 8)))
+                                   (ash integer (- (* (- count-bytes index 1) 8)))
                                    #xFF))
         (loop (+ index 1))))
     out))
