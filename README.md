@@ -36,26 +36,26 @@ Wanna be search engine with federation support
   - [x] nstore (srfi-168)
   - [x] [ulid](https://github.com/ulid/spec)
   - [x] make `thread-index` a global
-  - [ ] move okvs abstractions inside okvs directory (fts, counter,
+  - [x] move okvs abstractions inside okvs directory (fts, counter,
         nstore, ulid...)
-  - [ ] memory backend, requires r7rs or standalone redblack-tree
-  - [ ] foundationdb backend
-  - [ ] ulid store, rename object.scm to okvs/ustore.scm
-  - [ ] map
-  - [ ] multimap
-  - [ ] counter, requires map and thread-index
-  - [ ] rankedset
+  - [x] ulid store, rename object.scm to okvs/ustore.scm
+  - [x] add tests to ulid.scm
+  - [x] clean up: use with-directory from babelia/testing.scm
+  - [x] mapping
+  - [x] pack: support nested list
+  - [x] multimap
+  - [x] counter, requires mapping and thread-index
   - [ ] full-text search
     - [ ] index
       - [x] replace anything that is not alphanumeric with a space, and
             filter out words strictly smaller than 2 or strictly bigger
-            than 256,
+            than 64,
       - [x] store each stem once in the index,
-
       - [x] every known stem is associated with a count, and sum to be
             able to compute tf-idf,
       - [x] every known word is associated with a count, and sum to be
-            able to compute tf-idf.
+            able to compute tf-idf,
+      - [x] every stem is associated with the ulid.
     - [ ] query
       - [ ] parse query: KEY WORD -MINUS,
       - [ ] validate that query is not only negation,
@@ -86,3 +86,9 @@ Future documentation:
 - [ ] sensimark
 - [ ] federation
 - [ ] nstore's prefix: make it a bytevecor
+- [ ] okvs memory backend, requires r7rs or standalone redblack-tree
+- [ ] okvs foundationdb backend
+- [ ] rankedset
+- [ ] okvs/pack: optimize algorithm of nested list to rely on a single
+      pass
+- [ ] okvs/nstore: improve prefix handling.
