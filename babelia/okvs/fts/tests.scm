@@ -36,9 +36,7 @@ that diversity is a strength.")))
              (fts-index transaction fts (caar documents) (cdar documents))
              (loop (cdr documents)))))
        ;; exec
-       (let ((out (okvs-in-transaction okvs
-                    (lambda (transaction)
-                      (fts-query transaction fts "industrial production of knowledge -risk")))))
+       (let ((out (fts-query okvs fts "industrial production of knowledge -risk")))
          (engine-close engine okvs)
          ;; check
          out)))))
