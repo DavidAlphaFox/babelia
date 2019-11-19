@@ -94,8 +94,8 @@
 (define (fts-text-store transaction uid text)
   (let ((mapping (mapping (append (fts-prefix fts) %subspace-mapping-text)
                           (fts-engine fts))))
-    ;; TEXT is stored as-is and there is no ulid->sha256->value
-    ;; indirections to improve query-time performance.
+    ;; there must be no ulid->sha256->object indirections to improve
+    ;; query-time performance.
 
     ;; TODO: massage TEXT to a representation that is perfect for
     ;; query time.
@@ -152,17 +152,17 @@
     (multimap-ref transaction multimap seed)))
 
 (define (stems->seeds okvs fts stems)
-  (okvs-in-transaction okvs (lambda (transaction) (stem->seed/transaction transaction fts stems))))
+  (okvs-in-transaction okvs (lambda (transaction) (stems->seeds/transaction transaction fts stems))))
 
-(define (tiptop limit uid+score) ;; TODO optimize
+(define (tiptop limit uid+score) ;; TODO optimize with a scheme mapping
   (define (maybe-take lst limit)
     (if (<= (length lst) limit
             lst
             (take lst limit))))
-
   (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
 
 (define (score/transaction transaction fts uid positives negatives)
+  ;; XXX: TODO: improve it!
   (let* ((mapping (make-mapping (append (fts-prefix fts) %subspace-mapping-text)
                                 (fts-engine fts)))
          (words (map car (mapping-ref transaction mapping uid))))
@@ -176,23 +176,25 @@
     (lambda (transaction) (score/transaction transaction fts seed positives negatives))))
 
 (define-public (fts-query okvs fts string)
-  ;; fts-query takes an okvs as argument, instead of a transaction.
-  ;; Workers will spawn their own transactions.  It may be possible to
-  ;; pass transaction as argument, and retrieve the okvs handle from
-  ;; it but that would be mis-leading regarding the guarantees that
-  ;; fts-query provides.  In ACID, Consistency is not guaranteed.
-  ;; That is, as of today, workers can see different counts for words.
-  ;; Hence the score is eventually consistent.
+  ;; XXX: fts-query takes an okvs as argument, instead of a
+  ;; transaction.  Workers will spawn their own transactions.  It may
+  ;; be possible to pass transaction as argument, and retrieve the
+  ;; okvs handle from it but that would be mis-leading regarding the
+  ;; guarantees that fts-query provides.  In ACID, Consistency is not
+  ;; guaranteed.  That is, as of today, workers can see different
+  ;; counts for words.  Hence the score is eventually consistent.
+
+  ;; XXX: maybe query-parse in fts-apply and return multiple values,
+  ;; to avoid blocking the main thread.
   (call-with-values (lambda () (query-parse string))
     (lambda (positives negatives)
       (when (null? positives)
         (error 'babelia "invalid query, no positive keyword" string))
       (let ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
-            ;; database queries must be done in the workers thread pool.
+            ;; XXX: database queries must be done in the workers thread pool.
             (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
         (let ((out '()))
-          (fts-for-each-par-map (lambda (uid+score) (set! out (tiptop (fts-limit fts)
-                                                                      (cons uid+score out))))
-                                (lambda (uid) (score okvs fts uid positives negatives))
-                                seeds)
+          (fts-for-each-par-map
+           (lambda (uid+score) (set! out (tiptop (fts-limit fts) (cons uid+score out))))
+           (lambda (uid) (score okvs fts uid positives negatives)) seeds)
           out)))))
