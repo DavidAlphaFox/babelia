@@ -2,7 +2,8 @@
 
 Wanna be search engine with federation support
 
-[![babel tower beamed by an alien spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.jpg)](https://dribbble.com/shots/4890251-Babel)
+[![babel tower beamed by an alien
+spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.jpg)](https://dribbble.com/shots/4890251-Babel)
 
 (artwork by [mildtravis](https://dribbble.com/mildtravis))
 
@@ -64,9 +65,14 @@ Wanna be search engine with federation support
       - [x] in parallel, compute score against bag of word
             (term-frequency inverse-document-frequency)
       - [x] keep top 30 results (configurable)
-- [ ] in the nstore, save ulid, url, title, and preview
-- [ ] logging
-- [ ] guix package definition
+- [ ] crawler:
+  - [ ] add idle callback in fibers run-server,
+  - [ ] robots.txt-parse => robots.txt,
+  - [ ] robots.txt-delay => #t, #f or seconds,
+  - [ ] keep track of what is done and what is todo,
+- [ ] in the nstore, save ulid, url, title, and preview,
+- [ ] logging,
+- [ ] guix package definition.
 
 
 Future documentation:
