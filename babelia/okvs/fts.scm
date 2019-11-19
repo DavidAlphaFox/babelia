@@ -9,14 +9,22 @@
 (define english (make-stemmer "english"))
 
 (define-record-type <fts>
-  (make-fts prefix engine for-each-par-map)
+  (make-fts engine prefix ustore limit apply for-each-par-map)
   fts?
-  (prefix fts-prefix)
   (engine fts-engine)
+  (prefix fts-prefix)
+  (ustore fts-ustore)
+  (limit fts-limit)
+  (apply %fts-apply)
   (for-each-par-map %fts-for-each-par-map))
+
+(export make-fts)
 
 (define (fts-for-each-par-map fts sproc pproc lst)
   ((%fts-for-each-par-map fts) sproc pproc lst))
+
+(define (fts-apply fts thunk)
+  ((%fts-apply fts) thunk))
 
 (define ALPHANUM (string->list "0123456789abcdefghijklmnopqrstuvwxyz"))
 
@@ -45,17 +53,17 @@
 (define %subspace-mapping-text '(3))
 
 (define (fts-stem-increment transaction fts ulid)
-  (let ((counter (counter (append (fts-prefix fts) %subspace-counter-stem)
-                          (fts-engine fts))))
+  (let ((counter (make-counter (append (fts-prefix fts) %subspace-counter-stem)
+                               (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
 (define (fts-stem-add fts stem ulid)
-  (let ((multimap (multimap (append (fts-prefix fts) %subspace-multimap-stem)
+  (let ((multimap (make-multimap (append (fts-prefix fts) %subspace-multimap-stem)
                             (fts-engine fts))))
     (multimap-add transaction multimap stem ulid)))
 
 (define (fts-index-stem transaction fts text uid)
-  (let ((stems (map (lambda (stem) (object->ulid transaction object stem))
+  (let ((stems (map (lambda (stem) (object->ulid transaction ustore stem))
                     (text->stems text))))
     (let loop ((stems stems))
       (unless (null? stems)
@@ -94,15 +102,15 @@
     (mapping-set transaction mapping uid text)))
 
 (define (fts-word-increment transaction fts ulid)
-  (let ((counter (counter (append (fts-prefix fts) %subspace-counter-word)
-                          (fts-engine fts))))
+  (let ((counter (make-counter (append (fts-prefix fts) %subspace-counter-word)
+                               (fts-engine fts))))
     (counter-increment transaction counter ulid)))
 
 (define (fts-index-text transaction text uid)
   ;; store raw TEXT
   (fts-text-store transaction uid text)
   ;; store WORDS count to compute IDF
-  (let ((words (map (lambda (word) (object->ulid transaction object word))
+  (let ((words (map (lambda (word) (object->ulid transaction ustore word))
                     (text->words text))))
     (for-each (lambda (word) (fts-word-increment transaction fts word) words))))
 
@@ -111,5 +119,80 @@
   (when (fts-index-stem transaction fts text uid)
     (fts-index-text transaction fts text uid)))
 
-(define-public (fts-query fts query)
-  (when #f #f))
+(define (query-parse string)
+  (let loop ((keywords (filter (compose not string=?)
+                               (string-split (string-downcase string)) #\space))
+             (positives '())
+             (negatives '()))
+    (if (null? keywords)
+        (values positives negatives)
+        (if (char=? (string-ref (car keywords) 0) #\-)
+            (loop (cdr keywords)
+                  positives
+                  (cons (string-downcase (substring (car keywords) 1)) negatives))
+            (loop (cdr keywords)
+                  (cons (string-downcase (car keywords)) positives)
+                  negatives)))))
+
+;; TODO: return #f when there is no such object
+(define maybe-object->ulid object->ulid)
+
+(define (stems->seeds/transaction transaction fts stems)
+  (let* ((ulids (map (lambda (stem) (maybe-object->ulid transaction (fts-ustore fts) stem))
+                     stems))
+         (counter (make-counter (append (fts-prefix fts) %subspace-counter-stem)
+                                (fts-engine fts)))
+         (multimap (make-multimap (append (fts-prefix fts) %subspace-multimap-stem)
+                                  (fts-engine fts)))
+         ;; TODO: OPTIM where we only keep the smallest count, and
+         ;; early return in case of zero.
+         (counters (map (lambda (ulid) (cons ulid (counter-ref transaction counter ulid)))
+                        ulids))
+         (seed (caar (sort counters (lambda (a b) (<= (cdr a) (cdr b)))))))
+    (multimap-ref transaction multimap seed)))
+
+(define (stems->seeds okvs fts stems)
+  (okvs-in-transaction okvs (lambda (transaction) (stem->seed/transaction transaction fts stems))))
+
+(define (tiptop limit uid+score) ;; TODO optimize
+  (define (maybe-take lst limit)
+    (if (<= (length lst) limit
+            lst
+            (take lst limit))))
+
+  (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
+
+(define (score/transaction transaction fts uid positives negatives)
+  (let* ((mapping (make-mapping (append (fts-prefix fts) %subspace-mapping-text)
+                                (fts-engine fts)))
+         (words (map car (mapping-ref transaction mapping uid))))
+    (if (and (every (lambda (word) (member word words bytevector=?)) positives)
+             (not (any (lambda (word) (member word words bytevector=?)) negatives)))
+        (cons uid 1)
+        (cons uid 0))))
+
+(define (score okvs fts seed positives negatives)
+  (okvs-in-transaction okvs
+    (lambda (transaction) (score/transaction transaction fts seed positives negatives))))
+
+(define-public (fts-query okvs fts string)
+  ;; fts-query takes an okvs as argument, instead of a transaction.
+  ;; Workers will spawn their own transactions.  It may be possible to
+  ;; pass transaction as argument, and retrieve the okvs handle from
+  ;; it but that would be mis-leading regarding the guarantees that
+  ;; fts-query provides.  In ACID, Consistency is not guaranteed.
+  ;; That is, as of today, workers can see different counts for words.
+  ;; Hence the score is eventually consistent.
+  (call-with-values (lambda () (query-parse string))
+    (lambda (positives negatives)
+      (when (null? positives)
+        (error 'babelia "invalid query, no positive keyword" string))
+      (let ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
+            ;; database queries must be done in the workers thread pool.
+            (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
+        (let ((out '()))
+          (fts-for-each-par-map (lambda (uid+score) (set! out (tiptop (fts-limit fts)
+                                                                      (cons uid+score out))))
+                                (lambda (uid) (score okvs fts uid positives negatives))
+                                seeds)
+          out)))))
