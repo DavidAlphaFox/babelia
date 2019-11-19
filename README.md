@@ -58,12 +58,12 @@ Wanna be search engine with federation support
             able to compute tf-idf,
       - [x] every stem is associated with the ulid.
     - [ ] query
-      - [ ] parse query: KEY WORD -MINUS,
-      - [ ] validate that query is not only negation,
-      - [ ] seed with most discriminant stem,
-      - [ ] in parallel, compute score against bag of word
+      - [x] parse query: KEY WORD -MINUS,
+      - [x] validate that query is not only negation,
+      - [x] seed with most discriminant stem,
+      - [x] in parallel, compute score against bag of word
             (term-frequency inverse-document-frequency)
-      - [ ] keep top 30 results (no pagination),
+      - [x] keep top 30 results (configurable)
 - [ ] in the nstore, save ulid, url, title, and preview
 - [ ] logging
 - [ ] guix package definition
