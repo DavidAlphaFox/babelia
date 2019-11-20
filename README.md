@@ -63,7 +63,6 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
       - [x] validate that query is not only negation,
       - [x] seed with most discriminant stem,
       - [x] in parallel, compute score against bag of word
-            (term-frequency inverse-document-frequency)
       - [x] keep top 30 results (configurable)
 - [ ] crawler:
   - [ ] add idle callback in fibers run-server,
@@ -85,19 +84,18 @@ Future documentation:
 
 ## TODO
 
-- [ ] move to R7RS
-- [ ] wet/wat/warc file crawler
-- [ ] wet/wat/warc file consumer
-- [ ] search pad
-- [ ] spell checking
-- [ ] more-like-this
-- [ ] sensimark
 - [ ] federation
-- [ ] nstore's prefix: make it a bytevecor
-- [ ] okvs memory backend, requires r7rs or standalone redblack-tree
+- [ ] more-like-this
+- [ ] move to R7RS
 - [ ] okvs foundationdb backend
+- [ ] okvs fts: add td-idf scoring
+- [ ] okvs memory backend, requires r7rs or standalone redblack-tree
+- [ ] okvs nstore: improve prefix handling.
+- [ ] okvs pack: optimize algorithm of nested list with a single pass
 - [ ] okvs sqlite backend
 - [ ] rankedset
-- [ ] okvs/pack: optimize algorithm of nested list to rely on a single
-      pass
-- [ ] okvs/nstore: improve prefix handling.
+- [ ] search pad
+- [ ] sensimark
+- [ ] spell checking
+- [ ] wet/wat/warc file consumer
+- [ ] wet/wat/warc file crawler
