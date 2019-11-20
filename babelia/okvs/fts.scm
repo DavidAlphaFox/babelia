@@ -162,12 +162,27 @@
   (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
 
 (define (score/transaction transaction fts uid positives negatives)
-  ;; XXX: TODO: improve it!
+  ;; TODO: improve it to support TF-IDF.  To be able to support TF-IDF
+  ;; in a performant manner even when the database is distributed, I
+  ;; guess that TF-IDF requires to cache TF(word), TF(stem), DF(word),
+  ;; WF(stem) in the current processus shared between all the thread
+  ;; pool workers.  In fact, those two cache datastructures are
+  ;; mappings between an ulid and an integer, and the total of the
+  ;; related counter (that should be fetched once per fts-query or
+  ;; updated regularly).  That is, it could be some kind of hash-table
+  ;; with read and write lock and a condition variable per key-value
+  ;; association (pessimistic locking).  I guess it requires
+  ;; benchmarks.  It might require a in-memory thread-safe SRFI-167,
+  ;; that rely on pessimistic locking.
+
+  ;;XXX: In any case, make it work, then benchmark, then make it fast.
   (let* ((mapping (make-mapping (append (fts-prefix fts) %subspace-mapping-text)
                                 (fts-engine fts)))
          (words (map car (mapping-ref transaction mapping uid))))
     (if (and (every (lambda (word) (member word words bytevector=?)) positives)
              (not (any (lambda (word) (member word words bytevector=?)) negatives)))
+        ;; tie break, loop over the bag and sum the count of positive
+        ;; words.
         (cons uid 1)
         (cons uid 0))))
 
@@ -180,21 +195,40 @@
   ;; transaction.  Workers will spawn their own transactions.  It may
   ;; be possible to pass transaction as argument, and retrieve the
   ;; okvs handle from it but that would be mis-leading regarding the
-  ;; guarantees that fts-query provides.  In ACID, Consistency is not
-  ;; guaranteed.  That is, as of today, workers can see different
-  ;; counts for words.  Hence the score is eventually consistent.
+  ;; guarantees that fts-query provides.
+
+  ;; TODO: The query named STRING, only support minus operator to
+  ;; exclude a keyword.  It does not reduce the score of documents
+  ;; where there are words that share the same stem.  Eventually, it
+  ;; should also support OR operator, exact match and phrase match
+  ;; with "double quotes". It should give a better score to documents
+  ;; where the positive keywords appear near each other: proximity
+  ;; bonus. This lead me to think that the datastructure required to
+  ;; keep track of all those information is not a single record or a
+  ;; nested list.. I wonder if this is a usecase for a SRFI-168 that
+  ;; does not rely on srfi-167 for a last mile speed up.  It would not
+  ;; require transactions at all and would not be threadsafe. It
+  ;; prolly not need generators. If the pure SRFI-168 route is taken,
+  ;; it will require a nstore->list procedure to be able to store in
+  ;; the database.
+
+  ;; TODO: Also, see the comment in the procedure score/transaction.
 
   ;; TODO: query-parse in fts-apply and return multiple values, to
-  ;; avoid blocking the main thread. Also, it allow to fetch ulid for
-  ;; query terms.
+  ;; avoid blocking the main thread. Also, it fetch ulid for query
+  ;; terms.
 
   ;; TODO: validate query
+
+  ;; TODO: everything before fts-for-each-par-map must be in a
+  ;; procedure fts-prepare that is called with fts-apply. Among other
+  ;; things it must return the query terms as ulids.
   (call-with-values (lambda () (query-parse string))
     (lambda (positives negatives)
       (when (null? positives)
         (error 'babelia "invalid query, no positive keyword" string))
       (let ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
-            ;; XXX: database queries must be done in the workers thread pool.
+            ;; XXX: database queries must be done in worker thread pool.
             (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
         (let ((out '()))
           (fts-for-each-par-map
