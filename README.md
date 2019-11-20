@@ -69,26 +69,30 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
   - [ ] robots.txt-parse => robots.txt,
   - [ ] robots.txt-delay => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
-- [ ] in the nstore, save ulid, url, title, and preview,
-- [ ] logging,
-- [ ] guix package definition.
+- [ ] in the nstore, save ulid, url, title,
+- [ ] user interface:
+  - [ ] type your search query in the input box
+  - [ ] type an url to index it:
+    - [ ] if the url has a path, it will only index the given url
+          page, it will not follow redirections,
+    - [ ] if the url has no path, it will index the domain.
+- [ ] guix package definition for dependencies.
+- [ ] benchmark with scheme world dump, and commit the resulting
+      benchmark.
 
+## v0.2.0
 
-Future documentation:
-
-- type your search query in the input box
-- type an url to index it:
-  - if the url has a path, it will only index the given url page, it
-    will not follow redirections,
-  - if the url has no path, it will index the domain.
+- [ ] guix package definition for everything using autotools?,
+- [ ] upgrade wiredtiger,
+- [ ] move to R7RS https://builds.sr.ht/~amz3/guile-arew,
+- [ ] okvs fts: add td-idf scoring without cache,
+- [ ] benchmarks.
 
 ## TODO
 
+- [ ] logging
 - [ ] federation
-- [ ] more-like-this
-- [ ] move to R7RS
 - [ ] okvs foundationdb backend
-- [ ] okvs fts: add td-idf scoring
 - [ ] okvs memory backend, requires r7rs or standalone redblack-tree
 - [ ] okvs nstore: improve prefix handling.
 - [ ] okvs pack: optimize algorithm of nested list with a single pass
