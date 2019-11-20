@@ -29,13 +29,13 @@ https://ecraven.github.io/r7rs-benchmarks/
 https://ecraven.github.io/r7rs-coverage/
 https://eggs.call-cc.org/
 https://htdp.org/
-https://lists.gnu.org/archive/html/guile-devel
+https://lists.gnu.org/archive/html/guile-devel/
 https://lists.gnu.org/archive/html/guile-user/
-https://lists.gnu.org/archive/html/guix-devel
+https://lists.gnu.org/archive/html/guix-devel/
 https://lists.gnu.org/archive/html/help-guix/
 https://lists.gnu.org/archive/html/mit-scheme-users/
-https://lists.gnu.org/archive/html/bug-guix
-https://lists.gnu.org/archive/html/bug-guile
+https://lists.gnu.org/archive/html/bug-guix/
+https://lists.gnu.org/archive/html/bug-guile/
 https://pkgs.racket-lang.org/
 https://practical-scheme.net/
 https://racket-lang.org/
@@ -44,7 +44,7 @@ https://scsh.net/
 https://small.r7rs.org/
 https://srfi.schemers.org/
 https://wiki.call-cc.org/
-https://wiki.call-cc.org/discussion-groups
+https://wiki.call-cc.org/discussion-groups/
 https://www-sop.inria.fr/mimosa/fp/Bigloo/
 https://www.gnu.org/software/guile
 https://www.gnu.org/software/guix
