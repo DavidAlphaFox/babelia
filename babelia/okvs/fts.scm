@@ -184,8 +184,11 @@
   ;; guaranteed.  That is, as of today, workers can see different
   ;; counts for words.  Hence the score is eventually consistent.
 
-  ;; XXX: maybe query-parse in fts-apply and return multiple values,
-  ;; to avoid blocking the main thread.
+  ;; TODO: query-parse in fts-apply and return multiple values, to
+  ;; avoid blocking the main thread. Also, it allow to fetch ulid for
+  ;; query terms.
+
+  ;; TODO: validate query
   (call-with-values (lambda () (query-parse string))
     (lambda (positives negatives)
       (when (null? positives)
