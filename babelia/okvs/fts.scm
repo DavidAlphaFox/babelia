@@ -39,7 +39,7 @@
 (define (uniquify lst)
   (delete-duplicates lst string=?))
 
-(define (text->stems text)
+(define (text->stems text) ;; TODO: optimize
   (uniquify
    (map (lambda (word) (stem english word))
         (filter (compose not sane?)
@@ -86,7 +86,7 @@
         (loop (cdr stems))))
     (not (null? stems))))
 
-(define (text->words text)
+(define (text->words text) ;; TODO: optimize
   (uniquify
    (filter (compose not sane?)
            (string-split
@@ -168,7 +168,7 @@
   ;; TODO: improve it to support TF-IDF.  To be able to support TF-IDF
   ;; in a performant manner even when the database is distributed, I
   ;; guess that TF-IDF requires to cache TF(word), TF(stem), DF(word),
-  ;; WF(stem) in the current processus shared between all the thread
+  ;; DF(stem) in the current processus shared between all the thread
   ;; pool workers.  In fact, those two cache datastructures are
   ;; mappings between an ulid and an integer, and the total of the
   ;; related counter (that should be fetched once per fts-query or
@@ -176,18 +176,31 @@
   ;; with read and write lock and a condition variable per key-value
   ;; association (pessimistic locking).  I guess it requires
   ;; benchmarks.  It might require a in-memory thread-safe SRFI-167,
-  ;; that rely on pessimistic locking.
+  ;; that rely on pessimistic locking.  There is no need for
+  ;; transactions spanning multiple keys but could dead-lock.
+  ;; Exposing the bytevector-to-bytevector interface of SRFI-167, will
+  ;; require packing and unpacking for no good reason?  Also there is
+  ;; no need for ordered keys. It looks fun.
 
-  ;;XXX: In any case, make it work, then benchmark, then make it fast.
+  ;; TODO: Research BM25
+
+  ;; TODO: Maybe research how to bonus small texts
+
+  ;;XXX: In any case, make it work, then benchmark, then make it fast
   (let* ((mapping (make-mapping (append (fts-prefix fts) %subspace-mapping-text)
                                 (fts-engine fts)))
-         (words (map car (mapping-ref transaction mapping uid))))
-    (if (and (every (lambda (word) (member word words bytevector=?)) positives)
-             (not (any (lambda (word) (member word words bytevector=?)) negatives)))
-        ;; tie break, loop over the bag and sum the count of positive
-        ;; words.
-        (cons uid 1)
-        (cons uid 0))))
+         (bag (mapping-ref transaction mapping uid)))
+    (let loop ((bag bag)
+               (score 0))
+      (cond
+       ;; return
+       ((null? bag) (cons uid score))
+       ;; good, increment score
+       ((member (car bag) positives bytevector=?) (loop (cdr bag) (+ score (cadr bag))))
+       ;; bad, return but ignore
+       ((member (car bag) negatives bytevector=?) (cons uid #f))
+       ;; continue
+       (else (loop (cdr bag) score))))))
 
 (define (score okvs fts seed positives negatives)
   (okvs-in-transaction okvs
@@ -204,16 +217,16 @@
   ;; exclude a keyword.  It does not reduce the score of documents
   ;; where there are words that share the same stem.  Eventually, it
   ;; should also support OR operator, exact match and phrase match
-  ;; with "double quotes". It should give a better score to documents
+  ;; with "double quotes".  It should give a better score to documents
   ;; where the positive keywords appear near each other: proximity
   ;; bonus. This lead me to think that the datastructure required to
   ;; keep track of all those information is not a single record or a
   ;; nested list.. I wonder if this is a usecase for a SRFI-168 that
   ;; does not rely on srfi-167 for a last mile speed up.  It would not
   ;; require transactions at all and would not be threadsafe. It
-  ;; prolly not need generators. If the pure SRFI-168 route is taken,
-  ;; it will require a nstore->list procedure to be able to store in
-  ;; the database.
+  ;; prolly does not need generators. If the pure SRFI-168 route is
+  ;; taken, it will require a nstore->list procedure to be able to
+  ;; store in the database in fts-index.
 
   ;; TODO: Also, see the comment in the procedure score/transaction.
 
@@ -221,7 +234,8 @@
   ;; avoid blocking the main thread. Also, it fetch ulid for query
   ;; terms.
 
-  ;; TODO: validate query
+  ;; TODO: validate query: a) do not accept only negation b) do not
+  ;; accept the exclusion of a positive word.
 
   ;; TODO: everything before fts-for-each-par-map must be in a
   ;; procedure fts-prepare that is called with fts-apply. Among other
@@ -235,6 +249,7 @@
             (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
         (let ((out '()))
           (fts-for-each-par-map
-           (lambda (uid+score) (set! out (tiptop (fts-limit fts) (cons uid+score out))))
+           (lambda (uid+score) (when (cdr uid+score)
+                                 (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
            (lambda (uid) (score okvs fts uid positives negatives)) seeds)
           out)))))
