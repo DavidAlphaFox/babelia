@@ -76,9 +76,11 @@
         ;; to compute the discriminant stem at query time.  I think,
         ;; it is faster to compute the sum of values of an okvs/map as
         ;; used in okvs/counter that is at most 2^16 values to sum,
-        ;; than count the number of keys in a okvs/multimap that might
-        ;; be bigger that 2^16.  All that explains, the duplicate work
-        ;; in the following code:
+        ;; O(1) complexity. Meanwhile to count the number of keys in a
+        ;; okvs/multimap that might be much bigger that 2^16 with O(n)
+        ;; complexity where n is the number of items in the multimap.
+        ;; All that explains, the duplicate work in the following
+        ;; code:
         (fts-stem-increment transaction fts (car stems))
         (fts-stem-add fts (car stems) uid)
         (loop (cdr stems))))
@@ -116,6 +118,7 @@
 
 (define-public (fts-index transaction fts uid text)
   "Index TEXT string with UID as an identifier."
+  ;; TODO: check whether uid already is indexed.
   (when (fts-index-stem transaction fts text uid)
     (fts-index-text transaction fts text uid)))
 
