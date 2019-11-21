@@ -1,28 +1,37 @@
 (define-module (babelia okvs fts))
 
+(import (only (rnrs) error))
+
 (import (srfi srfi-1))
 (import (srfi srfi-9))
 (import (babelia stemmer))
+(import (babelia bytevector))
+(import (babelia okvs mapping))
+(import (babelia okvs engine))
+(import (babelia okvs ustore))
+(import (babelia okvs counter))
+(import (babelia okvs multimap))
 
 
 ;; TODO: i18n
 (define english (make-stemmer "english"))
 
 (define-record-type <fts>
-  (make-fts engine prefix ustore limit apply for-each-par-map)
+  (make-fts engine ustore prefix limit apply for-each-map)
   fts?
   (engine fts-engine)
   (prefix fts-prefix)
   (ustore fts-ustore)
   (limit fts-limit)
   (apply %fts-apply)
-  (for-each-par-map %fts-for-each-par-map))
+  (for-each-map %fts-for-each-map))
 
 (export make-fts)
 
-(define (fts-for-each-par-map fts sproc pproc lst)
-  ((%fts-for-each-par-map fts) sproc pproc lst))
+(define (fts-for-each-map fts sproc pproc lst)
+  ((%fts-for-each-map fts) sproc pproc lst))
 
+;; TODO: make it the same signature as scheme apply
 (define (fts-apply fts thunk)
   ((%fts-apply fts) thunk))
 
@@ -42,7 +51,7 @@
 (define (text->stems text) ;; TODO: optimize
   (uniquify
    (map (lambda (word) (stem english word))
-        (filter (compose not sane?)
+        (filter sane?
                 (string-split
                  (list->string (map maybe-space (string->list (string-downcase text))))
                  #\space)))))
@@ -53,17 +62,17 @@
 (define %subspace-mapping-text '(3))
 
 (define (fts-stem-increment transaction fts ulid)
-  (let ((counter (make-counter (append (fts-prefix fts) %subspace-counter-stem)
-                               (fts-engine fts))))
+  (let ((counter (make-counter (fts-engine fts)
+                               (append (fts-prefix fts) %subspace-counter-stem))))
     (counter-increment transaction counter ulid)))
 
-(define (fts-stem-add fts stem ulid)
-  (let ((multimap (make-multimap (append (fts-prefix fts) %subspace-multimap-stem)
-                            (fts-engine fts))))
+(define (fts-stem-add transaction fts stem ulid)
+  (let ((multimap (make-multimap (fts-engine fts)
+                                 (append (fts-prefix fts) %subspace-multimap-stem))))
     (multimap-add transaction multimap stem ulid)))
 
 (define (fts-index-stem transaction fts text uid)
-  (let ((stems (map (lambda (stem) (object->ulid transaction ustore stem))
+  (let ((stems (map (lambda (stem) (object->ulid transaction (fts-ustore fts) stem))
                     (text->stems text))))
     (let loop ((stems stems))
       (unless (null? stems)
@@ -82,39 +91,50 @@
         ;; All that explains, the duplicate work in the following
         ;; code:
         (fts-stem-increment transaction fts (car stems))
-        (fts-stem-add fts (car stems) uid)
+        (fts-stem-add transaction fts (car stems) uid)
         (loop (cdr stems))))
     (not (null? stems))))
 
 (define (text->words text) ;; TODO: optimize
-  (uniquify
-   (filter (compose not sane?)
-           (string-split
-            (list->string (map maybe-space (string->list (string-downcase text))))
-            #\space))))
+  (filter sane?
+          (string-split
+           (list->string (map maybe-space (string->list (string-downcase text))))
+           #\space)))
 
-(define (fts-text-store transaction uid text)
-  (let ((mapping (mapping (append (fts-prefix fts) %subspace-mapping-text)
-                          (fts-engine fts))))
+(define (text->bag transaction fts text)
+  (let ((words (text->words text)))
+    (let loop ((words* (uniquify words))
+               (bag '()))
+      (if (null? words*)
+          bag
+          (loop (cdr words*) (cons (list (object->ulid transaction
+                                                       (fts-ustore fts)
+                                                       (car words*))
+                                         (count (lambda (x) (string=? x (car words*))) words))
+                                    bag))))))
+
+(define (fts-text-store transaction fts uid text)
+  (let ((mapping (make-mapping (fts-engine fts)
+                               (append (fts-prefix fts) %subspace-mapping-text))))
     ;; there must be no ulid->sha256->object indirections to improve
     ;; query-time performance.
 
     ;; TODO: massage TEXT to a representation that is perfect for
     ;; query time.
-    (mapping-set transaction mapping uid text)))
+    (mapping-set transaction mapping uid (text->bag transaction fts text))))
 
 (define (fts-word-increment transaction fts ulid)
-  (let ((counter (make-counter (append (fts-prefix fts) %subspace-counter-word)
-                               (fts-engine fts))))
+  (let ((counter (make-counter (fts-engine fts)
+                               (append (fts-prefix fts) %subspace-counter-word))))
     (counter-increment transaction counter ulid)))
 
-(define (fts-index-text transaction text uid)
+(define (fts-index-text transaction fts text uid)
   ;; store raw TEXT
-  (fts-text-store transaction uid text)
+  (fts-text-store transaction fts uid text)
   ;; store WORDS count to compute IDF
-  (let ((words (map (lambda (word) (object->ulid transaction ustore word))
-                    (text->words text))))
-    (for-each (lambda (word) (fts-word-increment transaction fts word) words))))
+  (let ((words (map (lambda (word) (object->ulid transaction (fts-ustore fts) word))
+                    (uniquify (text->words text)))))
+    (for-each (lambda (word) (fts-word-increment transaction fts word)) words)))
 
 (define-public (fts-index transaction fts uid text)
   "Index TEXT string with UID as an identifier."
@@ -123,8 +143,8 @@
     (fts-index-text transaction fts text uid)))
 
 (define (query-parse string)
-  (let loop ((keywords (filter (compose not string=?)
-                               (string-split (string-downcase string)) #\space))
+  (let loop ((keywords (filter (compose not string-null?)
+                               (string-split (string-downcase string) #\space)))
              (positives '())
              (negatives '()))
     (if (null? keywords)
@@ -143,10 +163,10 @@
 (define (stems->seeds/transaction transaction fts stems)
   (let* ((ulids (map (lambda (stem) (maybe-object->ulid transaction (fts-ustore fts) stem))
                      stems))
-         (counter (make-counter (append (fts-prefix fts) %subspace-counter-stem)
-                                (fts-engine fts)))
-         (multimap (make-multimap (append (fts-prefix fts) %subspace-multimap-stem)
-                                  (fts-engine fts)))
+         (counter (make-counter (fts-engine fts)
+                                (append (fts-prefix fts) %subspace-counter-stem)))
+         (multimap (make-multimap (fts-engine fts)
+                                  (append (fts-prefix fts) %subspace-multimap-stem)))
          ;; TODO: OPTIM where we only keep the smallest count, and
          ;; early return in case of zero.
          (counters (map (lambda (ulid) (cons ulid (counter-ref transaction counter ulid)))
@@ -155,13 +175,14 @@
     (multimap-ref transaction multimap seed)))
 
 (define (stems->seeds okvs fts stems)
-  (okvs-in-transaction okvs (lambda (transaction) (stems->seeds/transaction transaction fts stems))))
+  (engine-in-transaction (fts-engine fts) okvs
+    (lambda (transaction) (stems->seeds/transaction transaction fts stems))))
 
 (define (tiptop limit uid+score) ;; TODO optimize with a scheme mapping
   (define (maybe-take lst limit)
-    (if (<= (length lst) limit
+    (if (<= (length lst) limit)
             lst
-            (take lst limit))))
+            (take lst limit)))
   (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
 
 (define (score/transaction transaction fts uid positives negatives)
@@ -187,23 +208,31 @@
   ;; TODO: Maybe research how to bonus small texts
 
   ;;XXX: In any case, make it work, then benchmark, then make it fast
-  (let* ((mapping (make-mapping (append (fts-prefix fts) %subspace-mapping-text)
-                                (fts-engine fts)))
-         (bag (mapping-ref transaction mapping uid)))
+  (let* ((mapping (make-mapping (fts-engine fts)
+                                (append (fts-prefix fts) %subspace-mapping-text)))
+         (bag (mapping-ref transaction mapping uid))
+         (positives (map (lambda (x) (maybe-object->ulid transaction
+                                                         (fts-ustore fts)
+                                                         x))
+                         positives))
+         (negatives (map (lambda (x) (maybe-object->ulid transaction
+                                                         (fts-ustore fts)
+                                                         x))
+                         negatives)))
     (let loop ((bag bag)
                (score 0))
       (cond
        ;; return
        ((null? bag) (cons uid score))
        ;; good, increment score
-       ((member (car bag) positives bytevector=?) (loop (cdr bag) (+ score (cadr bag))))
+       ((member (caar bag) positives bytevector=?) (loop (cdr bag) (+ score (cadar bag))))
        ;; bad, return but ignore
-       ((member (car bag) negatives bytevector=?) (cons uid #f))
+       ((member (caar bag) negatives bytevector=?) (cons uid #f))
        ;; continue
        (else (loop (cdr bag) score))))))
 
 (define (score okvs fts seed positives negatives)
-  (okvs-in-transaction okvs
+  (engine-in-transaction (fts-engine fts) okvs
     (lambda (transaction) (score/transaction transaction fts seed positives negatives))))
 
 (define-public (fts-query okvs fts string)
@@ -237,19 +266,21 @@
   ;; TODO: validate query: a) do not accept only negation b) do not
   ;; accept the exclusion of a positive word.
 
-  ;; TODO: everything before fts-for-each-par-map must be in a
+  ;; TODO: everything before fts-for-each-map must be in a
   ;; procedure fts-prepare that is called with fts-apply. Among other
   ;; things it must return the query terms as ulids.
   (call-with-values (lambda () (query-parse string))
     (lambda (positives negatives)
       (when (null? positives)
         (error 'babelia "invalid query, no positive keyword" string))
-      (let ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
-            ;; XXX: database queries must be done in worker thread pool.
-            (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
+      (let* ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
+             ;; XXX: database queries must be done in worker thread pool.
+             (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
         (let ((out '()))
-          (fts-for-each-par-map
+          (fts-for-each-map
+           fts
            (lambda (uid+score) (when (cdr uid+score)
                                  (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
-           (lambda (uid) (score okvs fts uid positives negatives)) seeds)
+           (lambda (uid) (score okvs fts uid positives negatives))
+           seeds)
           out)))))
