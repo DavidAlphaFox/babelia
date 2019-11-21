@@ -41,7 +41,7 @@
   "Increment count for OBJECT"
   (let* ((engine (counter-engine counter))
          (prefix (counter-prefix counter))
-         (key (engine-pack engine prefix object (thread-index)))
+         (key (apply engine-pack engine prefix object (list (thread-index))))
          (count (and=> (engine-ref engine transaction key)
                        (lambda (key) (car (engine-unpack engine key)))))
          (new-count (engine-pack engine (if count (+ count 1) 1))))
