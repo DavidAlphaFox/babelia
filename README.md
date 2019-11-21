@@ -79,6 +79,8 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - [ ] guix package definition for dependencies.
 - [ ] benchmark with scheme world dump, and commit the resulting
       benchmark.
+- [ ] need to split the number of cores between wiredtiger and the
+      app. Make thread-pool size configureable.
 
 ## v0.2.0
 
