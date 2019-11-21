@@ -9,7 +9,7 @@
 
 (define engine (make-default-engine))
 
-(define ustore (make-ustore engine #vu8(13 37)))
+(define ustore (make-ustore engine '(13 37)))
 
 (define-public test-00
   (test  ;; check that ULID is 16 bytes.
