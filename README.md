@@ -29,7 +29,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - [x] pool of workers to execute blocking operations
 - [x] snowball stemmer bindings
 - [x] html2text
-- [ ] okvs abstractions
+- [x] okvs abstractions
   - [x] okvs (srfi-167)
   - [x] `pack` and `unpack`
   - [x] `<engine>` type class object
@@ -64,6 +64,12 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
       - [x] seed with most discriminant stem,
       - [x] in parallel, compute score against bag of word
       - [x] keep top 30 results (configurable)
+ - [ ] add `babelia index PATH` command to index html files
+ - [ ] add `babelia search KEY WORD -MINUS` to search them
+
+## v0.2.0
+
+- [ ] move to R7RS https://builds.sr.ht/~amz3/guile-arew,
 - [ ] crawler:
   - [ ] add idle callback in fibers run-server,
   - [ ] robots.txt-parse => robots.txt,
@@ -81,12 +87,8 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
       benchmark.
 - [ ] need to split the number of cores between wiredtiger and the
       app. Make thread-pool size configureable.
-
-## v0.2.0
-
 - [ ] guix package definition for everything using autotools?,
 - [ ] upgrade wiredtiger,
-- [ ] move to R7RS https://builds.sr.ht/~amz3/guile-arew,
 - [ ] okvs fts: add td-idf scoring without cache,
 - [ ] benchmarks.
 
