@@ -49,7 +49,10 @@
 
 (define-public (counter-ref transaction counter object)
   (let* ((engine (counter-engine counter))
-         (prefix (engine-pack engine (counter-prefix counter) object))
+         (prefix (apply engine-pack
+                        engine
+                        (counter-prefix counter)
+                        (list object)))
          (generator (engine-prefix-range engine transaction prefix)))
     (let loop ((count 0)
                (key+value (generator)))
