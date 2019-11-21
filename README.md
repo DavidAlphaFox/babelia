@@ -47,8 +47,8 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
   - [x] multimap
   - [x] counter, requires mapping and thread-index
   - [x] crawl scheme world
-  - [ ] full-text search
-    - [ ] index
+  - [x] full-text search
+    - [x] index
       - [x] replace anything that is not alphanumeric with a space, and
             filter out words strictly smaller than 2 or strictly bigger
             than 64,
@@ -58,7 +58,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
       - [x] every known word is associated with a count, and sum to be
             able to compute tf-idf,
       - [x] every stem is associated with the ulid.
-    - [ ] query
+    - [x] query
       - [x] parse query: KEY WORD -MINUS,
       - [x] validate that query is not only negation,
       - [x] seed with most discriminant stem,
@@ -90,6 +90,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 
 ## TODO
 
+- [ ] okvs fts: remove and update
 - [ ] logging
 - [ ] federation
 - [ ] okvs foundationdb backend
