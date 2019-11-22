@@ -207,7 +207,7 @@
 
   ;; TODO: Maybe research how to bonus small texts
 
-  ;;XXX: In any case, make it work, then benchmark, then make it fast
+  ;; XXX: In any case, make it work, then benchmark, then make it fast
   (let* ((mapping (make-mapping (fts-engine fts)
                                 (append (fts-prefix fts) %subspace-mapping-text)))
          (bag (mapping-ref transaction mapping uid))
