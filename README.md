@@ -64,8 +64,8 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
       - [x] seed with most discriminant stem,
       - [x] in parallel, compute score against bag of word
       - [x] keep top 30 results (configurable)
- - [ ] add `babelia index PATH` command to index html files
- - [ ] add `babelia search KEY WORD -MINUS` to search them
+ - [x] add `babelia index PATH` command to index html files
+ - [x] add `babelia search KEY WORD -MINUS` to search them
 
 ## v0.2.0
 
