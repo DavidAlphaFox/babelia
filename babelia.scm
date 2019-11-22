@@ -51,23 +51,23 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
          (text (call-with-output-string (lambda (port) (html->text html port)))))
     (fts-index transaction fts filename text)))
 
+(define %config `((cache . ,(* 5 1024 1024))
+                  (wal . ,(* 1 1024 1024))
+                  (mmap . #f)))
+
 (define (index directory)
   (pk "indexing:" directory)
-  (let ((okvs (engine-open engine directory `((cache . ,(* 5 1024 1024))
-                                              (wal . ,(* 1 1024 1024))
-                                              (mmap . #f)
-                                              (eviction (min . 2)
-                                                        (max . 3))))))
     (for-each-html (lambda (filename)
-                     (engine-in-transaction engine okvs
-                       (lambda (transaction)
-                         (index/transaction transaction filename))))
-                   directory)
-    (engine-close engine okvs)))
+                     (let ((okvs (engine-open engine directory %config)))
+                       (engine-in-transaction engine okvs
+                         (lambda (transaction)
+                           (index/transaction transaction filename)))
+                       (engine-close engine okvs)))
+                   directory))
 
 (define (search directory query)
   (pk "search for:" query)
-  (let ((okvs (engine-open engine directory)))
+  (let ((okvs (engine-open engine directory %config)))
     (for-each pk (fts-query okvs fts query))
     (engine-close engine okvs)))
 
