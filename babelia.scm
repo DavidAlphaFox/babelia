@@ -55,15 +55,16 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
                   (wal . ,(* 1 1024 1024))
                   (mmap . #f)))
 
+
 (define (index directory)
+  (define okvs (engine-open engine directory %config))
   (pk "indexing:" directory)
-    (for-each-html (lambda (filename)
-                     (let ((okvs (engine-open engine directory %config)))
-                       (engine-in-transaction engine okvs
-                         (lambda (transaction)
-                           (index/transaction transaction filename)))
-                       (engine-close engine okvs)))
+  (for-each-html (lambda (filename)
+                   (engine-in-transaction engine okvs
+                     (lambda (transaction)
+                       (index/transaction transaction filename)))
                    directory))
+  (engine-close engine okvs))
 
 (define (search directory query)
   (pk "search for:" query)
