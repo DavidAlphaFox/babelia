@@ -12,7 +12,7 @@ xxx: ## Things that require attention
 	@grep -nR --color=always --after-context=4 XXX .
 
 bug-guix: bug-guix.tar.gz
-	tar xvf bug-guix.tar.gz
+	tar xf bug-guix.tar.gz
 	./babelia.scm index bug-guix/
 
 benchmarks: bug-guix ## Wanna be benchmarks
