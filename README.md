@@ -11,6 +11,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 
 - guile 2.9.4
 - guile-fibers 1.0.0
+- guile-bytestructures 1.0.6
 - guile-gcrypt 0.2.0
 - wiredtiger 3.0.0
 - snowball stemmer, see [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
