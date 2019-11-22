@@ -39,7 +39,7 @@
 ;; bindings
 
 (define snowball-stemmer
-  (dynamic-link* "/gnu/store/rzvlish3vsidfmvv74f74s2854wn8yii-stemmer-0.0.0/lib/libstemmer.so"))
+  (dynamic-link* "/gnu/store/0x5a6vpkqa3ydxg2s42rpicmsy0fvzrl-stemmer-0.0.0/lib/libstemmer.so"))
 
 (define stemmers
   (let ((proc (snowball-stemmer POINTER "sb_stemmer_list")))
