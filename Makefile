@@ -4,10 +4,16 @@ help: ## This help.
 check: ## Run tests
 	@echo "\n"
 	guile -L . check.scm
-# @echo "\033[95m\n\nYou may now run 'make lint'.\n\033[0m"
 
 todo: ## Things that should be done
 	@grep -nR --color=always --after-context=4 TODO .
 
 xxx: ## Things that require attention
 	@grep -nR --color=always --after-context=4 XXX .
+
+bug-guix: bug-guix.tar.gz
+	tar xvf bug-guix.tar.gz
+	./babelia.scm index bug-guix/
+
+benchmarks: bug-guix ## Wanna be benchmarks
+	bash benchmarks.sh > benchmarks.org
