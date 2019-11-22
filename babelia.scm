@@ -15,6 +15,10 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (babelia okvs fts))
 (import (babelia web))
 
+(define (current-milliseconds)
+  (let ((seconds+microseconds (gettimeofday)))
+    (+ (* (car seconds+microseconds) (expt 10 3))
+       (round (/ (cdr seconds+microseconds) (expt 10 3))))))
 
 (define engine (make-default-engine))
 
@@ -68,8 +72,11 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 
 (define (search directory query)
   (pk "search for:" query)
-  (let ((okvs (engine-open engine directory %config)))
-    (for-each pk (fts-query okvs fts query))
+  (let* ((okvs (engine-open engine directory %config))
+         (start (current-milliseconds))
+         (results (fts-query okvs fts query)))
+    (pk "query time in milliseconds" (- (current-milliseconds) start))
+    (for-each pk results)
     (engine-close engine okvs)))
 
 (define-public (main args)
