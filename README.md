@@ -14,7 +14,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - guile-bytestructures 1.0.6
 - guile-gcrypt 0.2.0
 - wiredtiger 3.0.0
-- snowball stemmer, see [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
+- stemmer, see [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## v0.1.0
 
@@ -70,32 +70,36 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 
 ## v0.2.0
 
-- [ ] move to R7RS https://builds.sr.ht/~amz3/guile-arew,
-- [ ] crawler:
-  - [ ] add idle callback in fibers run-server,
+- [ ] move to R7RS https://git.sr.ht/~amz3/guile-arew:
+  - [ ] scheme bitwise
+  - [ ] scheme bytevector
+  - [ ] scheme generator
+  - [ ] scheme hash-table
+  - [ ] scheme list
+  - [ ] scheme mapping
+  - [ ] scheme mapping hash
+  - [ ] scheme set
+  - [ ] guix: guile-build-system
+- [ ] improve query support
+- [ ] add stop words
+- [ ] add recent queries cache
+- [ ] add frequent queries cache
+- [ ] optim: single term queries where stem(term) = term?
+- [ ] babelia api secret show: add it
+- [ ] babelia api secret generate: add it
+- [ ] one crawler per domain as a separate process:
+  - [ ] BABELIA_SECRET environment variable,
   - [ ] robots.txt-parse => robots.txt,
   - [ ] robots.txt-delay => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
-- [ ] in the nstore, save ulid, url, title,
-- [ ] user interface:
-  - [ ] type your search query in the input box
-  - [ ] type an url to index it:
-    - [ ] if the url has a path, it will only index the given url
-          page, it will not follow redirections,
-    - [ ] if the url has no path, it will index the domain.
-- [ ] guix package definition for dependencies.
-- [ ] benchmark with scheme world dump, and commit the resulting
-      benchmark.
+- [ ] preview: in the nstore, save ulid, url, title,
+- [ ] guix package definition for dependencies,
+- [ ] benchmark with scheme world dump, and commit the resulting,
 - [ ] need to split the number of cores between wiredtiger and the
-      app. Make thread-pool size configureable.
-- [ ] guix package definition for everything using autotools?,
+      app. Make thread-pool size configureable,
 - [ ] upgrade wiredtiger,
 - [ ] okvs fts: add td-idf scoring without cache,
-- [ ] benchmarks.
-
-## TODO
-
-- [ ] okvs fts: remove and update
+- [ ] okvs fts: maybe-index and reindex (delete + add)
 - [ ] logging
 - [ ] federation
 - [ ] okvs foundationdb backend
@@ -107,5 +111,5 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - [ ] search pad
 - [ ] sensimark
 - [ ] spell checking
-- [ ] wet/wat/warc file consumer
-- [ ] wet/wat/warc file crawler
+- [ ] babelia index: warc file input
+- [ ] babelia crawler: output warc file
