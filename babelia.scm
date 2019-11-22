@@ -62,8 +62,8 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
   (for-each-html (lambda (filename)
                    (engine-in-transaction engine okvs
                      (lambda (transaction)
-                       (index/transaction transaction filename)))
-                   directory))
+                       (index/transaction transaction filename))))
+                   directory)
   (engine-close engine okvs))
 
 (define (search directory query)
