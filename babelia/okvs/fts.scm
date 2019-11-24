@@ -185,6 +185,9 @@
             (take lst limit)))
   (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
 
+(define (assoc* key alist)
+  (assoc key alist bytevector=?))
+
 (define (score/transaction transaction fts uid positives negatives)
   ;; TODO: improve it to support TF-IDF.  To be able to support TF-IDF
   ;; in a performant manner, I guess that TF-IDF requires to cache
@@ -222,17 +225,19 @@
                                                          (fts-ustore fts)
                                                          x))
                          negatives)))
-    (let loop ((bag bag)
-               (score 0))
-      (cond
-       ;; return
-       ((null? bag) (cons uid score))
-       ;; good, increment score
-       ((member (caar bag) positives bytevector=?) (loop (cdr bag) (+ score (cadar bag))))
-       ;; bad, return but ignore
-       ((member (caar bag) negatives bytevector=?) (cons uid #f))
-       ;; continue
-       (else (loop (cdr bag) score))))))
+    (if (any (lambda (negative) (member negative (map car bag))) negatives)
+        (cons uid #f)
+        (let loop ((positives positives)
+                   (score 0))
+          (cond
+           ;; return
+           ((null? positives) (cons uid score))
+           ;; good, increment score
+           ((assoc* (car positives) bag)
+            => (lambda (x) (loop (cdr positives) (+ score (cadr x)))))
+           ;; a positive keyword is not found in the bag, hence the
+           ;; document is not a match, so ignore it
+           (else (cons uid #f)))))))
 
 (define (score okvs fts seed positives negatives)
   (engine-in-transaction (fts-engine fts) okvs
@@ -282,8 +287,10 @@
         (let ((out '()))
           (fts-for-each-map
            fts
-           (lambda (uid+score) (when (cdr uid+score)
-                                 (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
+           (lambda (uid+score)
+             ;; keep top 'fts-limit' documents
+             (when (cdr uid+score)
+               (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
            (lambda (uid) (score okvs fts uid positives negatives))
            seeds)
           out)))))
