@@ -13,8 +13,11 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - guile-fibers 1.0.0
 - guile-bytestructures 1.0.6
 - guile-gcrypt 0.2.0
-- wiredtiger 3.0.0
-- stemmer, see [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
+- guile-gnutls 3.6.9
+- wiredtiger 3.2.0
+- stemmer 0.0.0
+
+See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## v0.1.0
 
@@ -70,35 +73,55 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 
 ## v0.2.0
 
-- [ ] move to R7RS https://git.sr.ht/~amz3/guile-arew:
-  - [ ] scheme bitwise
-  - [ ] scheme bytevector
-  - [ ] scheme generator
-  - [ ] scheme hash-table
-  - [ ] scheme list
-  - [ ] scheme mapping
+- [ ] move to R7RS https://git.sr.ht/~amz3/guile-arew
+  - [x] scheme bitwise
+  - [x] scheme bytevector
+  - [x] scheme comparator
+  - [x] scheme generator
+  - [x] scheme hash-table
+  - [x] scheme list
+  - [x] scheme mapping
   - [ ] scheme mapping hash
-  - [ ] scheme set
-  - [ ] guix: guile-build-system
-- [ ] improve query support
-- [ ] add stop words
-- [ ] add recent queries cache
-- [ ] add frequent queries cache
-- [ ] optim: single term queries where stem(term) = term?
-- [ ] babelia api secret show: add it
-- [ ] babelia api secret generate: add it
-- [ ] one crawler per domain as a separate process:
-  - [ ] BABELIA_SECRET environment variable,
-  - [ ] robots.txt-parse => robots.txt,
-  - [ ] robots.txt-delay => #t, #f or seconds,
+  - [x] scheme set
+  - [x] guix: guile-build-system
+- [ ] crawler:
+  - [ ] babelia crawler add URL:
+    - [ ] if has a path index only the given URL if it is html and
+          utf8 and not a redirection,
+    - [ ] otherwise, it is a domain:
+      - [ ] check that it is not a redirection,
+      - [ ] add that to domain todo,
+      - [ ] check that it is html and utf8,
+      - [ ] add linked pages to todo,
+      - [ ] index the index page,
+  - [ ] crawler in the same processus, in the main thread,
+  - [ ] (robots.txt-parse) => robots.txt,
+  - [ ] (robots.txt-delay path) => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
-- [ ] preview: in the nstore, save ulid, url, title,
+  - [ ] add to the todo only if is html and utf8, so before indexing
+        the source document.
+- [ ] web: input query
+- [ ] web: display results
+- [ ] okvs sqlite lsm ext backend
+- [ ] improve query support
+  - [ ] OR support
+  - [ ] exact
+  - [ ] phrase matching
+  - [ ] proximity bonus
+  - [ ] keyword weight
+  - [ ] positive stem support
+  - [ ] one way synonyms
+  - [ ] two way synonyms
+  - [ ] td-idf scoring
+- [ ] index: support structured documents
+- [ ] add stop words
+- [ ] cache query results
+- [ ] optim: single term queries where stem(term) = term?
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
 - [ ] need to split the number of cores between wiredtiger and the
       app. Make thread-pool size configureable,
 - [ ] upgrade wiredtiger,
-- [ ] okvs fts: add td-idf scoring without cache,
 - [ ] okvs fts: maybe-index and reindex (delete + add)
 - [ ] logging
 - [ ] federation
@@ -106,10 +129,11 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - [ ] okvs memory backend, requires r7rs or standalone redblack-tree
 - [ ] okvs nstore: improve prefix handling.
 - [ ] okvs pack: optimize algorithm of nested list with a single pass
-- [ ] okvs sqlite backend
 - [ ] rankedset
 - [ ] search pad
 - [ ] sensimark
 - [ ] spell checking
 - [ ] babelia index: warc file input
 - [ ] babelia crawler: output warc file
+- [ ] babelia api secret show: add it
+- [ ] babelia api secret generate: add it

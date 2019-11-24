@@ -187,21 +187,24 @@
 
 (define (score/transaction transaction fts uid positives negatives)
   ;; TODO: improve it to support TF-IDF.  To be able to support TF-IDF
-  ;; in a performant manner even when the database is distributed, I
-  ;; guess that TF-IDF requires to cache TF(word), TF(stem), DF(word),
-  ;; DF(stem) in the current processus shared between all the thread
-  ;; pool workers.  In fact, those two cache datastructures are
-  ;; mappings between an ulid and an integer, and the total of the
-  ;; related counter (that should be fetched once per fts-query or
-  ;; updated regularly).  That is, it could be some kind of hash-table
-  ;; with read and write lock and a condition variable per key-value
-  ;; association (pessimistic locking).  I guess it requires
-  ;; benchmarks.  It might require a in-memory thread-safe SRFI-167,
-  ;; that rely on pessimistic locking.  There is no need for
-  ;; transactions spanning multiple keys but could dead-lock.
-  ;; Exposing the bytevector-to-bytevector interface of SRFI-167, will
-  ;; require packing and unpacking for no good reason?  Also there is
-  ;; no need for ordered keys. It looks fun.
+  ;; in a performant manner, I guess that TF-IDF requires to cache
+  ;; TF(word), TF(stem), DF(word), DF(stem) in the current processus
+  ;; shared between all the thread pool workers.  In fact, that cache
+  ;; datastructures is a mapping between an ulid and an integer, and
+  ;; the total of the associated counter (that should be fetched once
+  ;; per fts-query or updated regularly).  That is, it could be some
+  ;; kind of hash-table with read and write lock and a condition
+  ;; variable per key-value association (pessimistic locking).  I
+  ;; guess it requires benchmarks.  It might require a in-memory
+  ;; thread-safe SRFI-167, that rely on pessimistic locking.  There is
+  ;; no need for transactions spanning multiple keys, still it could
+  ;; dead-lock.  Exposing the bytevector-to-bytevector interface of
+  ;; SRFI-167, will require packing and unpacking for no good reason?
+  ;; Note that there is no need for ordered keys. It looks fun.
+
+  ;; TODO: Think about how to handle structured document like html
+  ;; where they are fields that are more important than others. It
+  ;; might be called "field boosting" or "weight scoring".
 
   ;; TODO: Research BM25
 
@@ -245,17 +248,17 @@
   ;; TODO: The query named STRING, only support minus operator to
   ;; exclude a keyword.  It does not reduce the score of documents
   ;; where there are words that share the same stem.  Eventually, it
-  ;; should also support OR operator, exact match and phrase match
-  ;; with "double quotes".  It should give a better score to documents
-  ;; where the positive keywords appear near each other: proximity
-  ;; bonus. This lead me to think that the datastructure required to
-  ;; keep track of all those information is not a single record or a
-  ;; nested list.. I wonder if this is a usecase for a SRFI-168 that
-  ;; does not rely on srfi-167 for a last mile speed up.  It would not
-  ;; require transactions at all and would not be threadsafe. It
-  ;; prolly does not need generators. If the pure SRFI-168 route is
-  ;; taken, it will require a nstore->list procedure to be able to
-  ;; store in the database in fts-index.
+  ;; should also support OR operator, exact match, phrase match with
+  ;; "double quotes" and synonyms.  It should give a better score to
+  ;; documents where the positive keywords appear near each other:
+  ;; proximity bonus. This lead me to think that the datastructure
+  ;; required to keep track of all those information is not a single
+  ;; record or a nested list.  I wonder if this is a usecase for a
+  ;; SRFI-168 that does not rely on srfi-167 for a last mile speed up.
+  ;; It would not require transactions at all and would not be
+  ;; threadsafe. It prolly does not need generators. If the pure
+  ;; SRFI-168 route is taken, it will require a nstore->list procedure
+  ;; to be able to store in the database in fts-index.
 
   ;; TODO: Also, see the comment in the procedure score/transaction.
 

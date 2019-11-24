@@ -55,6 +55,13 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
          (text (call-with-output-string (lambda (port) (html->text html port)))))
     (fts-index transaction fts filename text)))
 
+
+;; TODO: rework the config to include eviction trigger and eviction
+;; target, max number of thread set to the count of cpu core:
+;;
+;;   https://source.wiredtiger.com/3.2.0/tune_cache.html
+;;
+;; Check statistics.
 (define %config `((cache . ,(* 5 1024 1024))
                   (wal . ,(* 1 1024 1024))
                   (mmap . #f)))
