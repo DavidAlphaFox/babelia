@@ -1,6 +1,9 @@
 help: ## This help.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
 
+init: ## Install dependencies with guix
+	guix package -i guile3.0-bytestructures guile3.0-gcrypt guile-fibers gnutls@3.6.9
+
 check: ## Run tests
 	@echo "\n"
 	guile -L . check.scm
