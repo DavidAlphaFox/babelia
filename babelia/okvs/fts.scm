@@ -268,8 +268,8 @@
   ;; TODO: Also, see the comment in the procedure score/transaction.
 
   ;; TODO: query-parse in fts-apply and return multiple values, to
-  ;; avoid blocking the main thread. Also, it fetch ulid for query
-  ;; terms.
+  ;; avoid blocking the main thread. Do not forget to fetch ulid for
+  ;; query terms.
 
   ;; TODO: validate query: a) do not accept only negation b) do not
   ;; accept the exclusion of a positive word.
