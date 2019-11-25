@@ -241,7 +241,7 @@
     ((okvs proc failure success make-state config)
      (%okvs-in-transaction okvs proc failure success make-state config))))
 
-(define-public (okvs-ref transaction key)
+(define (okvs-ref/transaction transaction key)
   (let ((cursor (session-cursor (transaction-session transaction))))
     (wt:cursor-key-set cursor key)
     (if (not (wt:cursor-search? cursor))
@@ -250,7 +250,13 @@
           (wt:cursor-reset cursor)
           value))))
 
-(define (%okvs-set! transaction key value)
+(define-public (okvs-ref okvs-or-transaction key)
+  (if (okvs-transaction? okvs-or-transaction)
+      (okvs-ref/transaction okvs-or-transaction key)
+      (okvs-in-transaction okvs-or-transaction
+        (lambda (transaction) (okvs-ref/transaction transaction key)))))
+
+(define (okvs-set!/with-transaction transaction key value)
   (let ((cursor (session-cursor (transaction-session transaction))))
     (wt:cursor-key-set cursor key)
     (wt:cursor-value-set cursor value)
@@ -258,9 +264,11 @@
 
 (define-public (okvs-set! okvs-or-transaction key value)
   (if (okvs-transaction? okvs-or-transaction)
-      (%okvs-set! okvs-or-transaction key value)
+      (okvs-set!/with-transaction okvs-or-transaction key value)
       (okvs-in-transaction okvs-or-transaction
-                           (lambda (transaction) (%okvs-set! transaction key value)))))
+        (lambda (transaction) (okvs-set!/with-transaction transaction
+                                                          key
+                                                          value)))))
 
 (define-public (okvs-delete! transaction key)
   (let ((cursor (session-cursor (transaction-session transaction))))
