@@ -84,16 +84,33 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] scheme mapping hash
   - [x] scheme set
   - [x] guix: guile-build-system
+- [ ] structured logging library with colored output configureable
+      with and envvar.
+- [ ] improve wiredtiger bindings and okvs, move the lock to the
+      record.
+- [ ] improve query support
+  - [ ] query parser
+  - [ ] OR support
+  - [ ] exact
+  - [ ] phrase matching
+  - [ ] proximity bonus
+  - [ ] positive stem support
+  - [ ] td-idf scoring
+  - [ ] keyword weight
+  - [ ] one way synonyms
+  - [ ] two way synonyms
+- [ ] extract and sanitize title of the document before indexing
 - [ ] babelia terms popular: output most popular terms
-- [ ] single term that are their own stem do no need to be filtered.
-- [ ] input text files with positive queries that must be cached:
+- [ ] babelia cache add: input text files with positive queries that
+      must be cached:
   - [ ] when the positive part of query match a cached query, fetch
         results from cache and apply negation if any,
-- [ ] input text files with stop world that must be ignored from
-      seed sampling. A query with only stop word must be rejected,
-- [ ] cache queries that take more that 5 seconds (configurable),
-- [ ] babelia slow queries: output slow queries,
-- [ ] babelia refresh cache: refresh the cache.
+- [ ] babelia stop-words add: input text files with stop word that
+      must be ignored from seed sampling.
+- [ ] A query with only stop word must be rejected,
+- [ ] log queries that take more that 5 seconds (configurable),
+- [ ] babelia queries slow: output slow queries,
+- [ ] babelia cache refresh: refresh the cache.
 - [ ] crawler:
   - [ ] babelia crawler add URL:
     - [ ] if has a path index only the given URL if it is html and
@@ -112,7 +129,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
         the source document.
 - [ ] web: input query
 - [ ] web: display results
-- [ ] okvs sqlite lsm ext backend
 - [ ] improve query support
   - [ ] OR support
   - [ ] exact
@@ -133,7 +149,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       app. Make thread-pool size configureable,
 - [ ] upgrade wiredtiger,
 - [ ] okvs fts: maybe-index and reindex (delete + add)
-- [ ] logging
 - [ ] federation
 - [ ] okvs foundationdb backend
 - [ ] okvs memory backend, requires r7rs or standalone redblack-tree
