@@ -254,7 +254,7 @@
       (okvs-in-transaction okvs-or-transaction
         (lambda (transaction) (okvs-ref/transaction transaction key)))))
 
-(define (okvs-set!/with-transaction transaction key value)
+(define (okvs-set!/transaction transaction key value)
   (let ((cursor (session-cursor (transaction-session transaction))))
     (wt:cursor-key-set cursor key)
     (wt:cursor-value-set cursor value)
@@ -262,16 +262,23 @@
 
 (define-public (okvs-set! okvs-or-transaction key value)
   (if (okvs-transaction? okvs-or-transaction)
-      (okvs-set!/with-transaction okvs-or-transaction key value)
+      (okvs-set!/transaction okvs-or-transaction key value)
       (okvs-in-transaction okvs-or-transaction
-        (lambda (transaction) (okvs-set!/with-transaction transaction
-                                                          key
-                                                          value)))))
+        (lambda (transaction) (okvs-set!/transaction transaction
+                                                     key
+                                                     value)))))
 
-(define-public (okvs-delete! transaction key)
+(define (okvs-delete!/transaction transaction key)
   (let ((cursor (session-cursor (transaction-session transaction))))
     (wt:cursor-key-set cursor key)
     (wt:cursor-remove cursor)))
+
+(define-public (okvs-delete! okvs-or-transaction key)
+  (if (okvs-transaction? okvs-or-transaction)
+      (okvs-delete!/transaction okvs-or-transaction key)
+      (okvs-in-transaction okvs-or-transaction
+        (lambda (transaction) (okvs-delete!/transaction transaction
+                                                        key)))))
 
 (define (lexicographic-compare bytevector other)
   ;; Return -1 if BYTEVECTOR is before OTHER, 0 if equal
@@ -432,12 +439,18 @@
                 (set! out (gtake out limit)))
               (generator-force-cursor-close cursor out)))))))
 
-(define-public okvs-range
+(define okvs-range/transaction
   (case-lambda
     ((transaction start-key start-include? end-key end-include?)
      (%okvs-range transaction start-key start-include? end-key end-include? '()))
     ((transaction start-key start-include? end-key end-include? config)
      (%okvs-range transaction start-key start-include? end-key end-include? config))))
+
+(define-public (okvs-range okvs-or-transaction . args)
+  (if (okvs-transaction? okvs-or-transaction)
+      (apply okvs-range/transaction okvs-or-transaction args)
+      (okvs-in-transaction okvs-or-transaction
+        (lambda (transaction) (apply okvs-range/transaction transaction args)))))
 
 (define (strinc bytevector)
   "Return the first bytevector that is not prefix of BYTEVECTOR"
@@ -453,16 +466,17 @@
     ;; increment first byte, reverse and return the bytevector
     (u8-list->bytevector (reverse (cons (+ 1 (car bytes)) (cdr bytes))))))
 
-(define (okvs-range-remove! transaction start-key start-include? end-key end-include?)
-  (let ((generator (okvs-range transaction start-key start-include? end-key end-include?)))
+(define (okvs-range-remove! okvs-or-transaction start-key start-include? end-key end-include?)
+  (let ((generator
+         (okvs-range okvs-or-transaction start-key start-include? end-key end-include?)))
     (let loop ((pair (generator)))
       (unless (eof-object? pair)
         (let ((key (car pair)))
           (okvs-delete! transaction key)
           (loop (generator)))))))
 
-(define-public (okvs-prefix-range transaction prefix . config)
-  (apply okvs-range transaction prefix #t (strinc prefix) #f config))
+(define-public (okvs-prefix-range okvs-or-transaction prefix . config)
+  (apply okvs-range okvs-or-transaction prefix #t (strinc prefix) #f config))
 
 (define-public (make-default-engine)
   (make-engine okvs-open
