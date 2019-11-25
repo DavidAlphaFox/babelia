@@ -166,6 +166,7 @@
                    (positive (maybe-object->ulid tx (fts-ustore fts) keyword)))
               (if positive
                   (loop (cdr keywords)
+                        ;; XXX: This can be worse, but stil...
                         (cons (cons positive
                                     (object->ulid tx (fts-ustore fts) (stem english keyword)))
                               positives)
@@ -214,7 +215,7 @@
             => (lambda (x) (loop (cdr positives) (+ score (cadr x)))))
            ;; a positive keyword is not found in the bag, hence the
            ;; document is not a match, so ignore it
-           (else (cons uid #f)))))))
+           (else (cons #f #f)))))))
 
 (define %null-query '(#f #f #f))
 
