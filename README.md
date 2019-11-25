@@ -84,10 +84,9 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] scheme mapping hash
   - [x] scheme set
   - [x] guix: guile-build-system
-- [ ] structured logging library with colored output configureable
-      with and envvar.
-- [ ] improve wiredtiger bindings and okvs, move the lock to the
-      record.
+- [x] logging library with colored output
+- [ ] okvs/fts: consider all keywords
+- [ ] okvs/wiredtiger: move the lock to the record.
 - [ ] improve query support
   - [ ] query parser
   - [ ] OR support
