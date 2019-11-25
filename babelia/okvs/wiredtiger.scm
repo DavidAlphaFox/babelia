@@ -449,8 +449,10 @@
 (define-public (okvs-range okvs-or-transaction . args)
   (if (okvs-transaction? okvs-or-transaction)
       (apply okvs-range/transaction okvs-or-transaction args)
-      (okvs-in-transaction okvs-or-transaction
-        (lambda (transaction) (apply okvs-range/transaction transaction args)))))
+      (list->generator
+       (okvs-in-transaction okvs-or-transaction
+         (lambda (transaction) (generator->list
+                                (apply okvs-range/transaction transaction args)))))))
 
 (define (strinc bytevector)
   "Return the first bytevector that is not prefix of BYTEVECTOR"
