@@ -11,7 +11,7 @@ TODO
 
 #### `(okvs-open home [config])`
 
-TODO
+If `memory?` is passed in `CONFIG` as `#t`, then `HOME` has no effect.
 
 #### `(okvs? obj)`
 
