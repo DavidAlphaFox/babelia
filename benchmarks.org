@@ -1,5 +1,5 @@
 * version
-guile (GNU Guile) 2.9.4
+guile (GNU Guile) 2.9.5
 Copyright (C) 2019 Free Software Foundation, Inc.
 
 License LGPLv3+: GNU LGPL 3 or later <http://gnu.org/licenses/lgpl.html>.
@@ -9,7 +9,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "shepherd")
 
-;;; ("query time in milliseconds" 270)
+;;; ("query time in milliseconds" 258)
 
 ;;; (("bug-guix/2019-02/msg00046.html" . 67))
 
@@ -34,7 +34,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "shepherd reboot")
 
-;;; ("query time in milliseconds" 200)
+;;; ("query time in milliseconds" 185)
 
 ;;; (("bug-guix/2018-03/msg00280.html" . 23))
 
@@ -44,22 +44,22 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; (("bug-guix/2019-09/msg00043.html" . 17))
 
-;;; (("bug-guix/2019-06/msg00220.html" . 15))
-
 ;;; (("bug-guix/2018-08/msg00133.html" . 15))
-
-;;; (("bug-guix/2017-09/msg00100.html" . 15))
 
 ;;; (("bug-guix/2018-03/msg00301.html" . 14))
 
 ;;; (("bug-guix/2018-03/msg00286.html" . 14))
 
 ;;; (("bug-guix/2018-03/msg00294.html" . 14))
+
+;;; (("bug-guix/2018-03/msg00303.html" . 13))
+
+;;; (("bug-guix/2018-08/threads.html" . 11))
 * search: shepherd restart
 
 ;;; ("search for:" "shepherd restart")
 
-;;; ("query time in milliseconds" 205)
+;;; ("query time in milliseconds" 193)
 
 ;;; (("bug-guix/2018-08/msg00161.html" . 69))
 
@@ -75,16 +75,16 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; (("bug-guix/2018-08/msg00164.html" . 45))
 
-;;; (("bug-guix/2018-12/msg00016.html" . 43))
-
 ;;; (("bug-guix/2018-11/index.html" . 43))
 
 ;;; (("bug-guix/2018-11/threads.html" . 43))
+
+;;; (("bug-guix/2018-12/msg00016.html" . 43))
 * search: guix
 
 ;;; ("search for:" "guix")
 
-;;; ("query time in milliseconds" 3973)
+;;; ("query time in milliseconds" 3675)
 
 ;;; (("bug-guix/2019-03/msg00238.html" . 4290))
 
