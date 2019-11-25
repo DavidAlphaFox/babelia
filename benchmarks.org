@@ -9,7 +9,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "shepherd")
 
-;;; ("query time in milliseconds" 258)
+;;; ("query time in milliseconds" 275)
 
 ;;; (("bug-guix/2019-02/msg00046.html" . 67))
 
@@ -34,7 +34,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "shepherd reboot")
 
-;;; ("query time in milliseconds" 185)
+;;; ("query time in milliseconds" 175)
 
 ;;; (("bug-guix/2018-03/msg00280.html" . 23))
 
@@ -59,7 +59,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "shepherd restart")
 
-;;; ("query time in milliseconds" 193)
+;;; ("query time in milliseconds" 189)
 
 ;;; (("bug-guix/2018-08/msg00161.html" . 69))
 
@@ -84,7 +84,7 @@ There is NO WARRANTY, to the extent permitted by law.
 
 ;;; ("search for:" "guix")
 
-;;; ("query time in milliseconds" 3675)
+;;; ("query time in milliseconds" 3756)
 
 ;;; (("bug-guix/2019-03/msg00238.html" . 4290))
 
