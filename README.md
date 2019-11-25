@@ -87,8 +87,7 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] logging library with colored output
 - [x] okvs/fts: consider all keywords
 - [x] okvs/wiredtiger: move the lock to the record.
-- [ ] improve query support
-  - [ ] query parser
+- [ ] parse query into the cache:
   - [ ] OR support
   - [ ] exact
   - [ ] phrase matching
