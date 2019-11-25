@@ -87,16 +87,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] logging library with colored output
 - [x] okvs/fts: consider all keywords
 - [x] okvs/wiredtiger: move the lock to the record.
-- [ ] parse query into the cache:
-  - [ ] OR support
-  - [ ] exact
-  - [ ] phrase matching
-  - [ ] proximity bonus
-  - [ ] positive stem support
-  - [ ] td-idf scoring
-  - [ ] keyword weight
-  - [ ] one way synonyms
-  - [ ] two way synonyms
+- [x] parse query into a closure procedure
+- [ ] td-idf
 - [ ] check.scm: make it possible to execute tests from low level to
       high level (or high level to low level)
 - [ ] extract and sanitize title of the document before indexing
@@ -129,16 +121,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
         the source document.
 - [ ] web: input query
 - [ ] web: display results
-- [ ] improve query support
-  - [ ] OR support
-  - [ ] exact
-  - [ ] phrase matching
-  - [ ] proximity bonus
-  - [ ] keyword weight
-  - [ ] positive stem support
-  - [ ] one way synonyms
-  - [ ] two way synonyms
-  - [ ] td-idf scoring
 - [ ] index: support structured documents
 - [ ] add stop words
 - [ ] cache query results
@@ -162,3 +144,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [ ] babelia crawler: output warc file
 - [ ] babelia api secret show: add it
 - [ ] babelia api secret generate: add it
+- [ ] okvs/fts:
+  - [ ] OR support
+  - [ ] proximity bonus
+  - [ ] keyword weight
+  - [ ] one way synonyms
+  - [ ] two way synonyms
+  - [ ] phrase matching
