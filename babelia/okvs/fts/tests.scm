@@ -17,7 +17,7 @@
 (define fts (make-fts engine
                       ustore
                       '(test-fts-prefix)
-                      10
+                      1
                       (lambda (thunk) (apply thunk '()))
                       for-each-map))
 
