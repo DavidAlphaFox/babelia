@@ -17,7 +17,7 @@
 (define fts (make-fts engine
                       ustore
                       '(test-fts-prefix)
-                      1
+                      10
                       (lambda (thunk) (apply thunk '()))
                       for-each-map))
 
@@ -33,7 +33,14 @@ strive and prosper once people acknowledge that the vnstore is the
 correct tool for that line of work")
                      (4 . "There is no place of hatered speech, racism
 and other lack of tolerance.  Earth can only prosper by recognizing
-that diversity is a strength."))) ;; keywords not found.
+that diversity is a strength.") ;; keywords not found.
+                     (5 . "“The man of knowledge must be able not only
+ to love his enemies but also to hate his friends.” ― Friedrich Nietzsche")
+                     ;; the following items are added to bump the
+                     ;; frequency of industrial and production to make
+                     ;; sure knowledge stem is the most discriminant.
+                     (6 . "industrial production")
+                     (7 . "industrial production")))
 
 (define-public test-00
   (test
