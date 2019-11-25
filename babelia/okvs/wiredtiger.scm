@@ -474,7 +474,7 @@
     (let loop ((pair (generator)))
       (unless (eof-object? pair)
         (let ((key (car pair)))
-          (okvs-delete! transaction key)
+          (okvs-delete! okvs-or-transaction key)
           (loop (generator)))))))
 
 (define-public (okvs-prefix-range okvs-or-transaction prefix . config)

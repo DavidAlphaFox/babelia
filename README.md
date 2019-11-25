@@ -98,6 +98,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] keyword weight
   - [ ] one way synonyms
   - [ ] two way synonyms
+- [ ] check.scm: make it possible to execute tests from low level to
+      high level (or high level to low level)
 - [ ] extract and sanitize title of the document before indexing
 - [ ] babelia terms popular: output most popular terms
 - [ ] babelia cache add: input text files with positive queries that
