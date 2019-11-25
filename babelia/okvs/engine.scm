@@ -18,6 +18,7 @@
  engine-unpack)
 
 (import (srfi srfi-9))
+(import (babelia generator))
 
 (define-record-type <engine>
   (make-engine open
@@ -65,3 +66,6 @@
 (define engine-hook-on-transaction-commit (make-invoker %engine-hook-on-transaction-commit))
 (define engine-pack (make-invoker %engine-pack))
 (define engine-unpack (make-invoker %engine-unpack))
+
+(define-public (engine->alist engine okvs-or-transaction)
+  (generator->list (engine-range engine okvs-or-transaction #vu8(0) #t #vu8(#xFF) #f)))
