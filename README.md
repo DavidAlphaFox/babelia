@@ -84,6 +84,16 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] scheme mapping hash
   - [x] scheme set
   - [x] guix: guile-build-system
+- [ ] babelia terms popular: output most popular terms
+- [ ] single term that are their own stem do no need to be filtered.
+- [ ] input text files with positive queries that must be cached:
+  - [ ] when the positive part of query match a cached query, fetch
+        results from cache and apply negation if any,
+- [ ] input text files with stop world that must be ignored from
+      seed sampling. A query with only stop word must be rejected,
+- [ ] cache queries that take more that 5 seconds (configurable),
+- [ ] babelia slow queries: output slow queries,
+- [ ] babelia refresh cache: refresh the cache.
 - [ ] crawler:
   - [ ] babelia crawler add URL:
     - [ ] if has a path index only the given URL if it is html and
