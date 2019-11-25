@@ -66,6 +66,11 @@
                                (append (fts-prefix fts) %subspace-counter-stem))))
     (counter-increment transaction counter ulid)))
 
+(define (stem-count-ref transaction fts stem)
+  (let ((counter (make-counter (fts-engine fts)
+                               (append (fts-prefix fts) %subspace-counter-stem))))
+    (counter-ref transaction counter stem)))
+
 (define (fts-stem-add transaction fts stem ulid)
   (let ((multimap (make-multimap (fts-engine fts)
                                  (append (fts-prefix fts) %subspace-multimap-stem))))
@@ -142,41 +147,33 @@
   (when (fts-index-stem transaction fts text uid)
     (fts-index-text transaction fts text uid)))
 
-(define (query-parse string)
+(define (fts-query-parse tx fts string)
   (let loop ((keywords (filter (compose not string-null?)
                                (string-split (string-downcase string) #\space)))
              (positives '())
              (negatives '()))
     (if (null? keywords)
-        (values positives negatives)
+        (values #t positives negatives)
         (if (char=? (string-ref (car keywords) 0) #\-)
             (loop (cdr keywords)
                   positives
-                  (cons (string-downcase (substring (car keywords) 1)) negatives))
-            (loop (cdr keywords)
-                  (cons (string-downcase (car keywords)) positives)
-                  negatives)))))
+                  (let* ((keyword (substring (car keywords) 1))
+                         (negative (maybe-object->ulid tx (fts-ustore fts) keyword)))
+                    (if negative
+                        (cons negative negatives)
+                        negatives)))
+            (let* ((keyword (car keywords))
+                   (positive (maybe-object->ulid tx (fts-ustore fts) keyword)))
+              (if positive
+                  (loop (cdr keywords)
+                        (cons (cons positive
+                                    (object->ulid tx (fts-ustore fts) (stem english keyword)))
+                              positives)
+                        negatives)
+                  (values #f #f #f))))))) ;; unknown positive keyword => no results.
 
 ;; TODO: return #f when there is no such object
 (define maybe-object->ulid object->ulid)
-
-(define (stems->seeds/transaction transaction fts stems)
-  (let* ((ulids (map (lambda (stem) (maybe-object->ulid transaction (fts-ustore fts) stem))
-                     stems))
-         (counter (make-counter (fts-engine fts)
-                                (append (fts-prefix fts) %subspace-counter-stem)))
-         (multimap (make-multimap (fts-engine fts)
-                                  (append (fts-prefix fts) %subspace-multimap-stem)))
-         ;; TODO: OPTIM where we only keep the smallest count, and
-         ;; early return in case of zero.
-         (counters (map (lambda (ulid) (cons ulid (counter-ref transaction counter ulid)))
-                        ulids))
-         (seed (caar (sort counters (lambda (a b) (<= (cdr a) (cdr b)))))))
-    (multimap-ref transaction multimap seed)))
-
-(define (stems->seeds okvs fts stems)
-  (engine-in-transaction (fts-engine fts) okvs
-    (lambda (transaction) (stems->seeds/transaction transaction fts stems))))
 
 (define (tiptop limit uid+score) ;; TODO optimize with a scheme mapping
   (define (maybe-take lst limit)
@@ -188,23 +185,12 @@
 (define (assoc* key alist)
   (assoc key alist bytevector=?))
 
-(define (score/transaction transaction fts uid positives negatives)
-  ;; TODO: improve it to support TF-IDF.  To be able to support TF-IDF
-  ;; in a performant manner, I guess that TF-IDF requires to cache
-  ;; TF(word), TF(stem), DF(word), DF(stem) in the current processus
-  ;; shared between all the thread pool workers.  In fact, that cache
-  ;; datastructures is a mapping between an ulid and an integer, and
-  ;; the total of the associated counter (that should be fetched once
-  ;; per fts-query or updated regularly).  That is, it could be some
-  ;; kind of hash-table with read and write lock and a condition
-  ;; variable per key-value association (pessimistic locking).  I
-  ;; guess it requires benchmarks.  It might require a in-memory
-  ;; thread-safe SRFI-167, that rely on pessimistic locking.  There is
-  ;; no need for transactions spanning multiple keys, still it could
-  ;; dead-lock.  Exposing the bytevector-to-bytevector interface of
-  ;; SRFI-167, will require packing and unpacking for no good reason?
-  ;; Note that there is no need for ordered keys. It looks fun.
+(define (text-ref tx fts uid)
+  (let ((mapping (make-mapping (fts-engine fts)
+                               (append (fts-prefix fts) %subspace-mapping-text))))
+    (mapping-ref tx mapping uid)))
 
+(define (score tx fts uid negatives positives)
   ;; TODO: Think about how to handle structured document like html
   ;; where they are fields that are more important than others. It
   ;; might be called "field boosting" or "weight scoring".
@@ -214,19 +200,10 @@
   ;; TODO: Maybe research how to bonus small texts
 
   ;; XXX: In any case, make it work, then benchmark, then make it fast
-  (let* ((mapping (make-mapping (fts-engine fts)
-                                (append (fts-prefix fts) %subspace-mapping-text)))
-         (bag (mapping-ref transaction mapping uid))
-         (positives (map (lambda (x) (maybe-object->ulid transaction
-                                                         (fts-ustore fts)
-                                                         x))
-                         positives))
-         (negatives (map (lambda (x) (maybe-object->ulid transaction
-                                                         (fts-ustore fts)
-                                                         x))
-                         negatives)))
-    (if (any (lambda (negative) (member negative (map car bag))) negatives)
-        (cons uid #f)
+  (let* ((bag (text-ref tx fts uid))
+         (words (map car bag)))
+    (if (any (lambda (negative) (member negative words bytevector=?)) negatives)
+        (cons #f #f)
         (let loop ((positives positives)
                    (score 0))
           (cond
@@ -239,9 +216,41 @@
            ;; document is not a match, so ignore it
            (else (cons uid #f)))))))
 
-(define (score okvs fts seed positives negatives)
-  (engine-in-transaction (fts-engine fts) okvs
-    (lambda (transaction) (score/transaction transaction fts seed positives negatives))))
+(define %null-query '(#f #f #f))
+
+(define (most-discriminant tx fts stems)
+  ;; compute the most discriminant stem
+  (let loop ((stems stems)
+             (min (inf))
+             (out #f))
+    (if (null? stems)
+        out
+        (let ((count (stem-count-ref tx fts (car stems))))
+          (if (< count min)
+              (loop (cdr stems) count (car stems))
+              (loop (cdr stems) min out))))))
+
+(define (seed->candidates tx fts seed)
+  (let ((multimap (make-multimap (fts-engine fts)
+                                 (append (fts-prefix fts) %subspace-multimap-stem))))
+    (multimap-ref tx multimap seed)))
+
+(define (fts-query-prepare/transaction tx fts string)
+  (call-with-values (lambda () (fts-query-parse tx fts string))
+    (lambda (continue? positives negatives)
+      (if (not continue?)
+          %null-query
+          (list #t
+                (seed->candidates tx fts (most-discriminant tx fts (map cdr positives)))
+                (lambda (tx fts uid)
+                  (score tx fts uid negatives (map car positives))))))))
+
+(define (fts-query-prepare okvs fts string)
+  (apply values
+         (fts-apply fts
+                    (lambda ()
+                      (engine-in-transaction (fts-engine fts) okvs
+                        (lambda (tx) (fts-query-prepare/transaction tx fts string)))))))
 
 (define-public (fts-query okvs fts string)
   ;; XXX: fts-query takes an okvs as argument, instead of a
@@ -250,47 +259,22 @@
   ;; okvs handle from it but that would be mis-leading regarding the
   ;; guarantees that fts-query provides.
 
-  ;; TODO: The query named STRING, only support minus operator to
-  ;; exclude a keyword.  It does not reduce the score of documents
-  ;; where there are words that share the same stem.  Eventually, it
-  ;; should also support OR operator, exact match, phrase match with
-  ;; "double quotes" and synonyms.  It should give a better score to
-  ;; documents where the positive keywords appear near each other:
-  ;; proximity bonus. This lead me to think that the datastructure
-  ;; required to keep track of all those information is not a single
-  ;; record or a nested list.  I wonder if this is a usecase for a
-  ;; SRFI-168 that does not rely on srfi-167 for a last mile speed up.
-  ;; It would not require transactions at all and would not be
-  ;; threadsafe. It prolly does not need generators. If the pure
-  ;; SRFI-168 route is taken, it will require a nstore->list procedure
-  ;; to be able to store in the database in fts-index.
-
-  ;; TODO: Also, see the comment in the procedure score/transaction.
-
-  ;; TODO: query-parse in fts-apply and return multiple values, to
-  ;; avoid blocking the main thread. Do not forget to fetch ulid for
-  ;; query terms.
-
   ;; TODO: validate query: a) do not accept only negation b) do not
   ;; accept the exclusion of a positive word.
 
-  ;; TODO: everything before fts-for-each-map must be in a
-  ;; procedure fts-prepare that is called with fts-apply. Among other
-  ;; things it must return the query terms as ulids.
-  (call-with-values (lambda () (query-parse string))
-    (lambda (positives negatives)
-      (when (null? positives)
-        (error 'babelia "invalid query, no positive keyword" string))
-      (let* ((stems (map (lambda (word) (stem english word)) (filter sane? positives)))
-             ;; XXX: database queries must be done in worker thread pool.
-             (seeds (fts-apply fts (lambda () (stems->seeds okvs fts stems)))))
-        (let ((out '()))
-          (fts-for-each-map
-           fts
-           (lambda (uid+score)
-             ;; keep top 'fts-limit' documents
-             (when (cdr uid+score)
-               (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
-           (lambda (uid) (score okvs fts uid positives negatives))
-           seeds)
-          out)))))
+  ;; Prepare the arguments of fts-for-each-map.
+  (call-with-values (lambda () (fts-query-prepare okvs fts string))
+    (lambda (continue? candidates score/transaction)
+      (if (not continue?)
+          '()
+          (let ((out '()))
+            (fts-for-each-map
+             fts
+             (lambda (uid+score)
+               ;; keep top 'fts-limit' documents
+               (when (cdr uid+score)
+                 (set! out (tiptop (fts-limit fts) (cons uid+score out)))))
+             (lambda (uid) (engine-in-transaction (fts-engine fts) okvs
+                             (lambda (tx) (score/transaction tx fts uid))))
+             candidates)
+            out)))))
