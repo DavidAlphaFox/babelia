@@ -85,8 +85,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] scheme set
   - [x] guix: guile-build-system
 - [x] logging library with colored output
-- [ ] okvs/fts: consider all keywords
-- [ ] okvs/wiredtiger: move the lock to the record.
+- [x] okvs/fts: consider all keywords
+- [x] okvs/wiredtiger: move the lock to the record.
 - [ ] improve query support
   - [ ] query parser
   - [ ] OR support

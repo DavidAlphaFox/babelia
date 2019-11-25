@@ -37,10 +37,11 @@
 
 
 (define-record-type <okvs>
-  (make-okvs cnx isolation sessions hook-begin hook-commit)
+  (make-okvs cnx isolation mutex sessions hook-begin hook-commit)
   okvs?
   (cnx okvs-cnx)
   (isolation okvs-isolation)
+  (mutex okvs-mutex)
   (sessions okvs-sessions okvs-sessions!)
   (hook-begin okvs-hook-on-transaction-begin)
   (hook-commit okvs-hook-on-transaction-commit))
@@ -112,9 +113,6 @@
       (string-append "isolation=\"" (symbol->string (okvs-isolation okvs)) "\"")
       ""))
 
-;; TODO: move into okvs record
-(define okvs-mutex (make-mutex))
-
 (define (%get-or-create-session okvs)
   ;; XXX: caller has the reponsability to close or put back the session
   (if (null? (okvs-sessions okvs))
@@ -127,7 +125,7 @@
         session)))
 
 (define (get-or-create-session okvs)
-  (with-mutex okvs-mutex (%get-or-create-session okvs)))
+  (with-mutex (okvs-mutex okvs) (%get-or-create-session okvs)))
 
 (define (okvs-config config)
   (let ((cache #f)
@@ -175,7 +173,7 @@
           (let ((session (wt:session-open cnx "")))
             (wt:session-create session "table:okvs" "key_format=u,value_format=u")
             (wt:session-close session)))
-        (make-okvs cnx isolation '() (make-hook 1) (make-hook 1))))))
+        (make-okvs cnx isolation (make-mutex) '() (make-hook 1) (make-hook 1))))))
 
 (define-public okvs-open
   (case-lambda
@@ -202,7 +200,7 @@
   ;; commit the transaction and put back the session into okvs
   (wt:session-transaction-commit (session-object (transaction-session transaction)) "")
   (wt:session-reset (session-object (transaction-session transaction)))
-  (with-mutex okvs-mutex
+  (with-mutex (okvs-mutex (transaction-okvs transaction))
               (okvs-sessions! (transaction-okvs transaction)
                               (cons (transaction-session transaction)
                                     (okvs-sessions (transaction-okvs transaction))))))
@@ -211,7 +209,7 @@
   ;; rollback the transaction and put back the session into okvs
   (wt:session-transaction-rollback (session-object (transaction-session transaction)) "")
   (wt:session-reset (session-object (transaction-session transaction)))
-  (with-mutex okvs-mutex
+  (with-mutex (okvs-mutex (transaction-okvs transaction))
               (okvs-sessions! (transaction-okvs transaction)
                               (cons (transaction-session transaction)
                                     (okvs-sessions (transaction-okvs transaction))))))
