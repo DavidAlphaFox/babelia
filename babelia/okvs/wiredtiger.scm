@@ -152,7 +152,9 @@
                    ((read-only?) (set! read-only? (cdar config)))
                    ((eviction-trigger) (set! eviction-trigger (cdar config)))
                    ((eviction) (set! eviction (cdar config)))
-                   ((mmap) (set! mmap (cdar config))))
+                   ((mmap) (set! mmap (cdar config)))
+                   (else
+                    (error 'okvs/wiredtiger "unknown configuration option" (caar config))))
                  (loop (cdr config)))))))
 
 (define (%okvs home config)
