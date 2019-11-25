@@ -28,4 +28,4 @@
 
 (define-public (multimap-ref transaction multimap key)
   "Return the associated values as a list"
-  (generator-map->list values (multimap-generator transaction multimap key)))
+  (generator->list (multimap-generator transaction multimap key)))
