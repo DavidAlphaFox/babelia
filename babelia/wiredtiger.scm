@@ -17,11 +17,18 @@
 ;;
 ;;; Comment:
 ;;
-;; - 2018/02/21: move to bytestructure and wiredtiger 3.0
+;; - 2018/02/21: use to bytestructure and update to wiredtiger 3.0
 ;;
-;; - 2018/09/16: move to guile-wiredtiger and update to wiredtiger 3.1
+;; - 2018/09/16: update to wiredtiger 3.1
 ;;
-;; - 2019/05/14: move to wiredtiger 3.2 and support bytes columns
+;; - 2019/05/14: use to wiredtiger 3.2 and support bytes columns
+;;
+;;; TODO:
+;;
+;; - Cache function pointers procedures,
+;;
+;; - Only support a single bytevector argument in cursor-key-set and
+;;   cursor cursor-value-set
 ;;
 (define-module (babelia wiredtiger))
 
@@ -306,6 +313,10 @@ takes no action and return an error."
 
 (define-public (cursor-key-ref cursor)
   "Retrieve the current key"
+  ;; TODO: OPTIM: avoid the ffi:pointer->procedure to ease the garbage
+  ;; the collector.
+
+  ;; TODO: Drop multiple value return.
   (let ((format (cursor-key-format cursor)))
     (let* ((args (map (lambda _ (make-double-pointer)) (string->list format)))
            (args* (cons (bytestructure->pointer cursor) args))
@@ -335,12 +346,12 @@ takes no action and return an error."
     (bytestructure-set! item 'size (bytevector-length bv))
     (bytestructure->pointer item)))
 
-(define *format->pointer* `((#\S . ,make-string-pointer)
-                            (#\Q . ,ffi:make-pointer)
-                            (#\r . ,ffi:make-pointer)
+(define *format->pointer* `((#\S . ,make-string-pointer) ;; TODO: drop it
+                            (#\Q . ,ffi:make-pointer) ;; TODO: drop it
+                            (#\r . ,ffi:make-pointer) ;; TODO: drop it
                             (#\u . ,bytevector->item)))
 
-(define (formats->items formats values)
+(define (formats->items formats values) ;; TODO: drop it
   (let loop ((formats (string->list formats))
              (values values))
     (if (null? formats)
@@ -366,7 +377,7 @@ takes no action and return an error."
    value will fail. This simplifies error handling in applications.
 
    VALUE must consistent with the format of the current object value."
-
+  ;; TODO: take a single argument
   (let* ((args (cons (bytestructure->pointer cursor) (formats->items (cursor-value-format cursor) value)))
          (signature (map (lambda _ POINTER) args))
          (function (ffi:pointer->procedure ffi:void (bytestructure-ref* cursor 'set-value) signature)))
