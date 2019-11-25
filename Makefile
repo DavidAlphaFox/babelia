@@ -20,3 +20,6 @@ bug-guix: bug-guix.tar.gz
 
 benchmarks: bug-guix ## Wanna be benchmarks
 	bash benchmarks.sh > benchmarks.org
+
+repl:  ## Start a guile REPL with rlwrap
+	rlwrap guile -L .
