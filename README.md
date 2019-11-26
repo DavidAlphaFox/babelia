@@ -86,23 +86,25 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] guix: guile-build-system
 - [x] logging library with colored output
 - [x] okvs/fts: consider all keywords
-- [x] okvs/wiredtiger: move the lock to the record.
-- [x] parse query into a closure procedure
+- [x] okvs/wiredtiger: move the lock to the record
+- [x] parse query into a closure
+- [x] babelia words counter: sorted by count
+  - [x] counter-fold
+- [ ] babelia words stop update FILENAME: input text file with stop
+      word that must be ignored as seed candidates.
+  - [ ] mapping-clear via okvs-range-remove
+- [ ] A query with only stop words will be rejected.
+- [ ] babelia words buzz update: FILENAME
+- [ ] a query that is one buzz word will be rejected, it requires at
+      least one other term that may be a buzz word.
+- [ ] babelia cache update FILENAME
+- [ ] babelia cache refresh
+- [ ] log queries that take more that 5 seconds (configurable),
+- [ ] babelia queries show: output slow queries,
 - [ ] td-idf
 - [ ] check.scm: make it possible to execute tests from low level to
       high level (or high level to low level)
 - [ ] extract and sanitize title of the document before indexing
-- [ ] babelia terms popular: output most popular terms
-- [ ] babelia cache add: input text files with positive queries that
-      must be cached:
-  - [ ] when the positive part of query match a cached query, fetch
-        results from cache and apply negation if any,
-- [ ] babelia stop-words add: input text files with stop word that
-      must be ignored from seed sampling.
-- [ ] A query with only stop word must be rejected,
-- [ ] log queries that take more that 5 seconds (configurable),
-- [ ] babelia queries slow: output slow queries,
-- [ ] babelia cache refresh: refresh the cache.
 - [ ] crawler:
   - [ ] babelia crawler add URL:
     - [ ] if has a path index only the given URL if it is html and
@@ -122,20 +124,16 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [ ] web: input query
 - [ ] web: display results
 - [ ] index: support structured documents
-- [ ] add stop words
-- [ ] cache query results
-- [ ] optim: single term queries where stem(term) = term?
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
 - [ ] need to split the number of cores between wiredtiger and the
       app. Make thread-pool size configureable,
-- [ ] upgrade wiredtiger,
 - [ ] okvs fts: maybe-index and reindex (delete + add)
 - [ ] federation
 - [ ] okvs foundationdb backend
-- [ ] okvs memory backend, requires r7rs or standalone redblack-tree
 - [ ] okvs nstore: improve prefix handling.
 - [ ] okvs pack: optimize algorithm of nested list with a single pass
+- [ ] okvs pack: past argument as a list instead of rest
 - [ ] rankedset
 - [ ] search pad
 - [ ] sensimark
