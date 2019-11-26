@@ -23,6 +23,8 @@
 (import (srfi srfi-9))
 (import (only (rnrs) eof-object?))
 
+(import (ice-9 match))
+
 (import (babelia thread))
 (import (babelia bytevector))
 (import (babelia generator))
@@ -71,3 +73,29 @@
           count
           (loop (+ count (car (engine-unpack engine (cdr key+value))))
                 (generator))))))
+
+
+(define %null '(null))
+
+(define (unpack engine x)
+  (cons (engine-unpack engine (car x)) (car (engine-unpack engine (cdr x)))))
+
+(define-public (counter-fold transaction kons knil counter)
+  (let* ((engine (counter-engine counter))
+         (prefix (engine-pack engine (counter-prefix counter)))
+         (generator (gmap (lambda (x) (unpack engine x))
+                          (engine-prefix-range engine transaction prefix))))
+    (let loop ((key %null)
+               (count 0)
+               (key+value (generator))
+               (knil knil))
+      (if (eof-object? key+value)
+          (kons (cons key count) knil)
+          (match key+value
+            (((prefix other _0) . value)
+             (if (eq? key other)
+                 (loop key (+ count value) (generator) knil)
+                 (begin
+                   (if (eq? key %null)
+                       (loop other value (generator) knil)
+                       (loop other value (generator) (kons (cons key count) knil)))))))))))
