@@ -7,13 +7,13 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 * search: shepherd
 
-;;; ("average query time in milliseconds" 190.9)
+;;; ("average query time in milliseconds" 224.1)
 * search: shepherd reboot
 
-;;; ("average query time in milliseconds" 129.8)
+;;; ("average query time in milliseconds" 141.1)
 * search: shepherd restart
 
-;;; ("average query time in milliseconds" 150.0)
+;;; ("average query time in milliseconds" 128.4)
 * search: guix
 
-;;; ("average query time in milliseconds" 3159.2)
+;;; ("average query time in milliseconds" 3109.8)
