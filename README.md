@@ -91,11 +91,15 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] babelia words counter: sorted by count
   - [x] counter-fold
 - [x] babelia stem counter: sorted by count
-- [ ] babelia words stop update FILENAME: input text file with stop
+- [ ] babelia stem stop update FILENAME: input text file with stop
       word that must be ignored as seed candidates.
   - [ ] mapping-clear via okvs-range-remove
   - [ ] mapping->hash-table comparator
-- [ ] reject queries that have only stop words as positives terms
+- [x] babelia stem stop guess DIRECTORY SECONDS: benchmark using a
+      fresh database connection each stem from frequent to infrequent
+      until it takes less than SECONDS to query. Output the stems that
+      are slow.
+- [ ] reject queries which seed is a stop word
 - [ ] crawler:
   - [ ] babelia crawler add URL:
     - [ ] if has a path index only the given URL if it is html and
