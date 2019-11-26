@@ -291,3 +291,16 @@
                 (display (cdr x))
                 (newline))
               counters)))
+
+
+(define-public (fts-stem-counter-display okvs fts)
+  (let* ((counter (make-counter (fts-engine fts)
+                                (append (fts-prefix fts) %subspace-counter-stem)))
+         (counters (counter-fold okvs cons '() counter))
+         (counters (sort counters (lambda (a b) (< (cdr a) (cdr b))))))
+    (for-each (lambda (x)
+                (display (ulid->object okvs (fts-ustore fts) (car x)))
+                (display " ")
+                (display (cdr x))
+                (newline))
+              counters)))

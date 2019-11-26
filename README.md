@@ -90,6 +90,7 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] parse query into a closure
 - [x] babelia words counter: sorted by count
   - [x] counter-fold
+- [x] babelia stem counter: sorted by count
 - [ ] babelia words stop update FILENAME: input text file with stop
       word that must be ignored as seed candidates.
   - [ ] mapping-clear via okvs-range-remove

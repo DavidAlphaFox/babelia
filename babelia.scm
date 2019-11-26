@@ -115,4 +115,8 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
     (`("word" "counter" ,directory)
        (let* ((okvs (engine-open engine directory %config)))
          (fts-word-counter-display okvs fts)
+         (engine-close engine okvs)))
+    (`("stem" "counter" ,directory)
+       (let* ((okvs (engine-open engine directory %config)))
+         (fts-stem-counter-display okvs fts)
          (engine-close engine okvs)))))
