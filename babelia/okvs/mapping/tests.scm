@@ -47,3 +47,19 @@
                       (generator-map->list values (mapping-generator transaction mapping))))))
          (engine-close engine okvs)
          out)))))
+
+
+(define-public test-03
+  (test  ;; clear
+   '()
+   (with-directory "wt"
+     (let ((okvs (engine-open engine "wt")))
+       (let ((out (okvs-in-transaction okvs
+                    (lambda (transaction)
+                      (mapping-set transaction mapping 1 'one)
+                      (mapping-set transaction mapping 2 'two)
+                      (mapping-set transaction mapping 3 'three)
+                      (mapping-clear transaction mapping)
+                      (generator->list (mapping-generator transaction mapping))))))
+         (engine-close engine okvs)
+         out)))))
