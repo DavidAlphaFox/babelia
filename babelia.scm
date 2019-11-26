@@ -24,7 +24,7 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (define ustore (make-ustore engine '(ustore)))
 
 (define (for-each-map sproc pproc lst)
-  (n-for-each-par-map 6 sproc pproc lst))
+  (n-for-each-par-map (- (current-processor-count) 1) sproc pproc lst))
 
 (define fts (make-fts engine
                       ustore
