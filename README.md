@@ -100,8 +100,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       are slow.
 - [x] reject queries which seed is a stop word
 - [ ] crawler:
+  - [ ] same command babelia.scm but another processus.
+  - [ ]
   - [ ] babelia crawler add URL:
-    - [ ] if has a path index only the given URL if it is html and
+    - [ ] if has a path, index only the given URL if it is html and
           utf8 and not a redirection,
     - [ ] otherwise, it is a domain:
       - [ ] check that it is not a redirection,
@@ -109,7 +111,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       - [ ] check that it is html and utf8,
       - [ ] add linked pages to todo,
       - [ ] index the index page,
-  - [ ] crawler in the same processus, in the main thread,
+  - [ ] todo list: fetch top value
+    - [ ] okvs: add engine-ref* selector inspired from fdb
   - [ ] (robots.txt-parse) => robots.txt,
   - [ ] (robots.txt-delay path) => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
