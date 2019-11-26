@@ -7,101 +7,13 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 * search: shepherd
 
-;;; ("search for:" "shepherd")
-
-;;; ("query time in milliseconds" 275)
-
-;;; (("bug-guix/2019-02/msg00046.html" . 67))
-
-;;; (("bug-guix/2018-11/msg00052.html" . 51))
-
-;;; (("bug-guix/2018-11/msg00097.html" . 49))
-
-;;; (("bug-guix/2017-05/msg00178.html" . 48))
-
-;;; (("bug-guix/2017-05/msg00176.html" . 48))
-
-;;; (("bug-guix/2018-11/msg00119.html" . 47))
-
-;;; (("bug-guix/2018-11/msg00210.html" . 46))
-
-;;; (("bug-guix/2018-11/msg00091.html" . 45))
-
-;;; (("bug-guix/2018-11/msg00047.html" . 44))
-
-;;; (("bug-guix/2018-11/msg00117.html" . 43))
+;;; ("average query time in milliseconds" 190.9)
 * search: shepherd reboot
 
-;;; ("search for:" "shepherd reboot")
-
-;;; ("query time in milliseconds" 175)
-
-;;; (("bug-guix/2018-03/msg00280.html" . 23))
-
-;;; (("bug-guix/2018-07/msg00206.html" . 20))
-
-;;; (("bug-guix/2019-06/msg00224.html" . 18))
-
-;;; (("bug-guix/2019-09/msg00043.html" . 17))
-
-;;; (("bug-guix/2018-08/msg00133.html" . 15))
-
-;;; (("bug-guix/2018-03/msg00301.html" . 14))
-
-;;; (("bug-guix/2018-03/msg00286.html" . 14))
-
-;;; (("bug-guix/2018-03/msg00294.html" . 14))
-
-;;; (("bug-guix/2018-03/msg00303.html" . 13))
-
-;;; (("bug-guix/2018-08/threads.html" . 11))
+;;; ("average query time in milliseconds" 129.8)
 * search: shepherd restart
 
-;;; ("search for:" "shepherd restart")
-
-;;; ("query time in milliseconds" 189)
-
-;;; (("bug-guix/2018-08/msg00161.html" . 69))
-
-;;; (("bug-guix/2019-02/msg00046.html" . 68))
-
-;;; (("bug-guix/2018-08/msg00162.html" . 54))
-
-;;; (("bug-guix/2018-08/msg00169.html" . 46))
-
-;;; (("bug-guix/2018-08/msg00170.html" . 46))
-
-;;; (("bug-guix/2018-08/msg00167.html" . 45))
-
-;;; (("bug-guix/2018-08/msg00164.html" . 45))
-
-;;; (("bug-guix/2018-11/index.html" . 43))
-
-;;; (("bug-guix/2018-11/threads.html" . 43))
-
-;;; (("bug-guix/2018-12/msg00016.html" . 43))
+;;; ("average query time in milliseconds" 150.0)
 * search: guix
 
-;;; ("search for:" "guix")
-
-;;; ("query time in milliseconds" 3756)
-
-;;; (("bug-guix/2019-03/msg00238.html" . 4290))
-
-;;; (("bug-guix/2017-05/msg00176.html" . 2482))
-
-;;; (("bug-guix/2017-05/msg00178.html" . 2481))
-
-;;; (("bug-guix/2017-05/msg00182.html" . 2180))
-
-;;; (("bug-guix/2016-12/msg00073.html" . 685))
-
-;;; (("bug-guix/2016-03/msg00102.html" . 685))
-
-;;; (("bug-guix/2013-02/msg00163.html" . 568))
-
-;;; (("bug-guix/2018-01/msg00320.html" . 370))
-
-;;; (("bug-guix/2019-07/msg00050.html" . 314))
-
-;;; (("bug-guix/2019-04/msg00107.html" . 262))
+;;; ("average query time in milliseconds" 3159.2)
