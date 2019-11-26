@@ -6,16 +6,16 @@ guile --version
 
 echo "* search: shepherd"
 
-./babelia.scm search bug-guix/ shepherd
+./babelia.scm benchmark bug-guix/ shepherd
 
 echo "* search: shepherd reboot"
 
-./babelia.scm search bug-guix/ shepherd reboot
+./babelia.scm benchmark bug-guix/ shepherd reboot
 
 echo "* search: shepherd restart"
 
-./babelia.scm search bug-guix/ shepherd restart
+./babelia.scm benchmark bug-guix/ shepherd restart
 
 echo "* search: guix"
 
-./babelia.scm search bug-guix/ guix
+./babelia.scm benchmark bug-guix/ guix

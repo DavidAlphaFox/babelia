@@ -93,18 +93,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [ ] babelia words stop update FILENAME: input text file with stop
       word that must be ignored as seed candidates.
   - [ ] mapping-clear via okvs-range-remove
-- [ ] A query with only stop words will be rejected.
-- [ ] babelia words buzz update: FILENAME
-- [ ] a query that is one buzz word will be rejected, it requires at
-      least one other term that may be a buzz word.
-- [ ] babelia cache update FILENAME
-- [ ] babelia cache refresh
-- [ ] log queries that take more that 5 seconds (configurable),
-- [ ] babelia queries show: output slow queries,
-- [ ] td-idf
-- [ ] check.scm: make it possible to execute tests from low level to
-      high level (or high level to low level)
-- [ ] extract and sanitize title of the document before indexing
+  - [ ] mapping->hash-table comparator
+- [ ] reject queries that have only stop words as positives terms
 - [ ] crawler:
   - [ ] babelia crawler add URL:
     - [ ] if has a path index only the given URL if it is html and
@@ -121,8 +111,17 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] keep track of what is done and what is todo,
   - [ ] add to the todo only if is html and utf8, so before indexing
         the source document.
+- [ ] normalize query: remove useless whitespace to play nice with the cache
 - [ ] web: input query
 - [ ] web: display results
+- [ ] log queries that take more that 5 seconds (configurable),
+- [ ] babelia queries show: output slow queries,
+- [ ] babelia cache update FILENAME
+- [ ] babelia cache refresh
+- [ ] extract and sanitize title of the document before indexing
+
+## v0.3.0
+
 - [ ] index: support structured documents
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
@@ -149,3 +148,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] one way synonyms
   - [ ] two way synonyms
   - [ ] phrase matching
+  - [ ] td-idf
+- [ ] check.scm: make it possible to execute tests from low level to
+      high level (or high level to low level)

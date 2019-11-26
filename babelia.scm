@@ -13,7 +13,6 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (babelia okvs engine))
 (import (babelia okvs wiredtiger))
 (import (babelia okvs fts))
-(import (babelia web))
 
 (define (current-milliseconds)
   (let ((seconds+microseconds (gettimeofday)))
@@ -86,11 +85,33 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
     (for-each pk results)
     (engine-close engine okvs)))
 
+(define (benchmark-once okvs fts query)
+  (let* ((start (current-milliseconds)))
+    (fts-query okvs fts query)
+    (- (current-milliseconds) start)))
+
+(define (benchmark directory query)
+  (let* ((okvs (engine-open engine directory %config)))
+    ;; warm the cache
+    (fts-query okvs fts query)
+    ;; wait the cache to be setup ready
+    (sleep 2)
+    ;; benchmark
+    (let loop ((count 0)
+               (sum 0))
+      (if (= count 10)
+          (pk "average query time in milliseconds"
+              (exact->inexact (/ sum 10)))
+          (loop (+ count 1) (+ sum (benchmark-once okvs fts query)))))
+    (engine-close engine okvs)))
+
+
+
 (define-public (main args)
   (match (cdr args)
     (`("index" ,directory) (index directory))
     (`("search" ,directory . ,keywords) (search directory (string-join keywords " ")))
-    (`("web") (run))
+    (`("benchmark" ,directory . ,keywords) (benchmark directory (string-join keywords " ")))
     (`("word" "counter" ,directory)
        (let* ((okvs (engine-open engine directory %config)))
          (fts-word-counter-display okvs fts)

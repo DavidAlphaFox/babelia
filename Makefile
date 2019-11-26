@@ -18,7 +18,7 @@ bug-guix: bug-guix.tar.gz
 	tar xf bug-guix.tar.gz
 	./babelia.scm index bug-guix/
 
-benchmarks: bug-guix ## Wanna be benchmarks
+benchmarks: bug-guix compile ## Wanna be benchmarks
 	bash benchmarks.sh > benchmarks.org
 
 repl:  ## Start a guile REPL with rlwrap
