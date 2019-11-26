@@ -477,6 +477,9 @@
           (okvs-delete! okvs-or-transaction key)
           (loop (generator)))))))
 
+(define-public (okvs-prefix-range-remove! okvs-or-transaction prefix)
+  (okvs-range-remove! okvs-or-transaction prefix #t (strinc prefix) #f))
+
 (define-public (okvs-prefix-range okvs-or-transaction prefix . config)
   (apply okvs-range okvs-or-transaction prefix #t (strinc prefix) #f config))
 
@@ -488,6 +491,7 @@
                okvs-set!
                okvs-delete!
                okvs-range-remove!
+               okvs-prefix-range-remove!
                okvs-range
                okvs-prefix-range
                okvs-hook-on-transaction-begin

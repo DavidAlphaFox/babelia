@@ -10,6 +10,7 @@
  engine-set!
  engine-delete!
  engine-range-remove!
+ engine-prefix-range-remove!
  engine-range
  engine-prefix-range
  engine-hook-on-transaction-begin
@@ -28,6 +29,7 @@
                set
                delete
                range-remove
+               prefix-range-remove
                range
                prefix-range
                hook-on-transaction-begin
@@ -42,6 +44,7 @@
   (set %engine-set)
   (delete %engine-delete)
   (range-remove %engine-range-remove)
+  (prefix-range-remove %engine-prefix-range-remove)
   (range %engine-range)
   (prefix-range %engine-prefix-range)
   (hook-on-transaction-begin %engine-hook-on-transaction-begin)
@@ -60,6 +63,7 @@
 (define engine-set! (make-invoker %engine-set))
 (define engine-delete! (make-invoker %engine-delete))
 (define engine-range-remove! (make-invoker %engine-range-remove))
+(define engine-prefix-range-remove! (make-invoker %engine-prefix-range-remove))
 (define engine-range (make-invoker %engine-range))
 (define engine-prefix-range (make-invoker %engine-prefix-range))
 (define engine-hook-on-transaction-begin (make-invoker %engine-hook-on-transaction-begin))
