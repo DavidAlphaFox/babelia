@@ -243,10 +243,13 @@
     (lambda (continue? positives negatives)
       (if (not continue?)
           %null-query
-          (list #t
-                (seed->candidates tx fts (most-discriminant tx fts (map cdr positives)))
-                (lambda (tx fts uid)
-                  (score tx fts uid negatives (map car positives))))))))
+          (let ((seed (most-discriminant tx fts (map cdr positives))))
+            (if (fts-stem-stop? tx fts seed)
+                %null-query
+                (list #t
+                      (seed->candidates tx fts seed)
+                      (lambda (tx fts uid)
+                        (score tx fts uid negatives (map car positives))))))))))
 
 (define (fts-query-prepare okvs fts string)
   (apply values
@@ -317,3 +320,8 @@
                                 (append (fts-prefix fts) %subspace-mapping-stem-stop))))
     (generator-map->list (lambda (x) (ulid->object okvs (fts-ustore fts) (car x)))
                          (mapping-generator okvs mapping))))
+
+(define (fts-stem-stop? transaction fts stem)
+  (let* ((mapping (make-mapping (fts-engine fts)
+                                (append (fts-prefix fts) %subspace-mapping-stem-stop))))
+    (mapping-ref transaction mapping stem)))
