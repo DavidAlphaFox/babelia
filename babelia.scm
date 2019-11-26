@@ -128,6 +128,17 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
                 (for-each (compose print car) out)
                 (loop (cdr stems) (cons (car stems) out))))))))
 
+(define (stem-stop-update directory filename)
+  (let ((okvs (engine-open engine directory %config))
+        (stems (string-split (call-with-input-file filename read-string) #\newline)))
+    (fts-stem-stop-update okvs fts stems)
+    (engine-close engine okvs)))
+
+(define (stem-stop-show directory)
+  (let ((okvs (engine-open engine directory %config)))
+    (for-each print (fts-stem-stop-ref okvs fts))
+    (engine-close engine okvs)))
+
 (define-public (main args)
   (match (cdr args)
     (`("index" ,directory) (index directory))
@@ -142,4 +153,6 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
        (let* ((okvs (engine-open engine directory %config)))
          (for-each print (fts-stem-counter okvs fts))
          (engine-close engine okvs)))
-    (`("stem" "stop" "guess" ,directory ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))))
+    (`("stem" "stop" "guess" ,directory ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
+    (`("stem" "stop" "show" ,directory) (stem-stop-show directory))
+    (`("stem" "stop" "update" ,directory ,filename) (stem-stop-update directory filename))))
