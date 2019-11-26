@@ -115,7 +115,7 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
       (reverse out)))
 
 (define (stem-stop-guess directory min)
-  ;; TODO: speed up the search with divide-and-conquer strategy that
+  ;; TODO: speed up the search with divide-and-conquer strategy, that
   ;; is a dichotomy.
   (let ((stems (stems-ref directory)))
     (let loop ((stems stems)
