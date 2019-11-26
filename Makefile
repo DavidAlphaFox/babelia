@@ -5,8 +5,8 @@ init: ## Install dependencies with guix
 	guix package -i guile3.0-bytestructures guile3.0-gcrypt guile-fibers gnutls@3.6.9
 
 check: ## Run tests
-	@echo "\n"
 	guile -L . check.scm
+	@echo "\033[95m\n\nWin!\n\033[0m"
 
 todo: ## Things that should be done
 	@grep -nR --color=always --after-context=4 TODO .
