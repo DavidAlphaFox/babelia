@@ -23,3 +23,24 @@ benchmarks: bug-guix ## Wanna be benchmarks
 
 repl:  ## Start a guile REPL with rlwrap
 	rlwrap guile -L .
+
+compile:  ## Compile every file at maximum optimization level
+	guild compile -L . -O3 ./babelia.scm
+	guild compile -L . -O3 ./babelia/wiredtiger.scm
+	guild compile -L . -O3 ./babelia/fash.scm
+	guild compile -L . -O3 ./babelia/okvs/wiredtiger.scm
+	guild compile -L . -O3 ./babelia/okvs/counter.scm
+	guild compile -L . -O3 ./babelia/okvs/mapping.scm
+	guild compile -L . -O3 ./babelia/okvs/engine.scm
+	guild compile -L . -O3 ./babelia/okvs/ustore.scm
+	guild compile -L . -O3 ./babelia/okvs/nstore.scm
+	guild compile -L . -O3 ./babelia/okvs/fts.scm
+	guild compile -L . -O3 ./babelia/okvs/pack.scm
+	guild compile -L . -O3 ./babelia/okvs/ulid.scm
+	guild compile -L . -O3 ./babelia/okvs/multimap.scm
+	guild compile -L . -O3 ./babelia/generator.scm
+	guild compile -L . -O3 ./babelia/cffi.scm
+	guild compile -L . -O3 ./babelia/bytevector.scm
+	guild compile -L . -O3 ./babelia/stemmer.scm
+	guild compile -L . -O3 ./babelia/thread.scm
+	guild compile -L . -O3 ./babelia/wiredtiger/config.scm
