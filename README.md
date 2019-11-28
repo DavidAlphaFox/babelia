@@ -99,9 +99,17 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       until it takes less than SECONDS to query. Output the stems that
       are slow.
 - [x] reject queries which seed is a stop word
+- [ ] babelia web api secret generate --force: create file with the
+      hex string of the secret.
+- [ ] babelia web api secret show
+- [ ] babelia web /api/index
+  - [ ] use nstore
+  - [ ] extract and sanitize title of the document before indexing: max 100 chars
+  - [ ] create small preview: max 280 chars
 - [ ] crawler:
-  - [ ] same command babelia.scm but another processus.
-  - [ ]
+  - [ ] use nstore in separate directory
+  - [ ] babelia crawler run: same command but another processus.
+  - [ ] fiber main thread + workers
   - [ ] babelia crawler add URL:
     - [ ] if has a path, index only the given URL if it is html and
           utf8 and not a redirection,
@@ -111,8 +119,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       - [ ] check that it is html and utf8,
       - [ ] add linked pages to todo,
       - [ ] index the index page,
-  - [ ] todo list: fetch top value
-    - [ ] okvs: add engine-ref* selector inspired from fdb
   - [ ] (robots.txt-parse) => robots.txt,
   - [ ] (robots.txt-delay path) => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
@@ -125,10 +131,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [ ] babelia queries show: output slow queries,
 - [ ] babelia cache update FILENAME
 - [ ] babelia cache refresh
-- [ ] extract and sanitize title of the document before indexing
 
 ## v0.3.0
 
+- [ ] web api secret: encrypt the secret
 - [ ] index: support structured documents
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
@@ -158,3 +164,13 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] td-idf
 - [ ] check.scm: make it possible to execute tests from low level to
       high level (or high level to low level)
+- [ ] babelia crawler sitemap support
+- [ ] babelia crawler wikimedia: use rest api, otherwise fallback to
+      wiki.
+
+## TODO
+
+- [ ] entity recognition
+- [ ] inbound links
+- [ ] domain or page outbound links
+- [ ] page rank
