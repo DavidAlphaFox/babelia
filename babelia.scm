@@ -13,6 +13,7 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (babelia okvs engine))
 (import (babelia okvs wiredtiger))
 (import (babelia okvs fts))
+(import (babelia web api secret))
 
 (define (current-milliseconds)
   (let ((seconds+microseconds (gettimeofday)))
@@ -155,4 +156,7 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
          (engine-close engine okvs)))
     (`("stem" "stop" "guess" ,directory ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
     (`("stem" "stop" "show" ,directory) (stem-stop-show directory))
-    (`("stem" "stop" "update" ,directory ,filename) (stem-stop-update directory filename))))
+    (`("stem" "stop" "update" ,directory ,filename) (stem-stop-update directory filename))
+    ;; TODO: eventually all commands must start with a directory and ends with a rest.
+    (`(,directory "web" "api" "secret" "generate" . ,args)
+     (subcommand-secret-generate directory args))))

@@ -99,9 +99,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       until it takes less than SECONDS to query. Output the stems that
       are slow.
 - [x] reject queries which seed is a stop word
-- [ ] babelia web api secret generate --force: create file with the
+- [x] babelia web api secret generate --force: create file with the
       hex string of the secret.
-- [ ] babelia web api secret show
 - [ ] babelia web /api/index
   - [ ] use nstore
   - [ ] extract and sanitize title of the document before indexing: max 100 chars
@@ -134,7 +133,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## v0.3.0
 
-- [ ] web api secret: encrypt the secret
+- [ ] babelia web api secret generate: encrypt the secret
+- [ ] babelia web api secret show
 - [ ] index: support structured documents
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
