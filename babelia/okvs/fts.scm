@@ -1,9 +1,9 @@
 (define-module (babelia okvs fts))
 
-(import (only (rnrs) error))
+(import (scheme base))
 
 (import (srfi srfi-1))
-(import (srfi srfi-9))
+
 (import (babelia stemmer))
 (import (babelia generator))
 (import (babelia bytevector))
@@ -90,13 +90,13 @@
         ;; keys in a given range, that is why the okvs interface is
         ;; what it is.  Also, we need fts-stem-count to be very fast
         ;; to compute the discriminant stem at query time.  I think,
-        ;; it is faster to compute the sum of values of an okvs/map as
-        ;; used in okvs/counter that is at most 2^16 values to sum,
-        ;; O(1) complexity. Meanwhile to count the number of keys in a
-        ;; okvs/multimap that might be much bigger that 2^16 with O(n)
-        ;; complexity where n is the number of items in the multimap.
-        ;; All that explains, the duplicate work in the following
-        ;; code:
+        ;; it is faster to compute the count using okvs/counter that
+        ;; is at most 2^16 values to sum, O(1) complexity. Meanwhile
+        ;; to count the number of keys in a okvs/multimap that might
+        ;; be much bigger that 2^16 with O(n) complexity where n is
+        ;; the number of items in the multimap, that is the number of
+        ;; documents that contains that stem.  That explains the
+        ;; duplicate work in the following code:
         (fts-stem-increment transaction fts (car stems))
         (fts-stem-add transaction fts (car stems) uid)
         (loop (cdr stems))))
