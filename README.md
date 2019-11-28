@@ -101,8 +101,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] reject queries which seed is a stop word
 - [x] babelia web api secret generate --force: create file with the
       hex string of the secret.
+- [x] okvs abstraction: rstore
 - [ ] babelia web /api/index
-  - [ ] use nstore
   - [ ] extract and sanitize title of the document before indexing: max 100 chars
   - [ ] create small preview: max 280 chars
 - [ ] crawler:
