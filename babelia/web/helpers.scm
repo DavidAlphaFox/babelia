@@ -73,8 +73,8 @@ example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
           (values (build-response #:code 303 #:headers headers) ""))
         (values (build-response #:code 303 #:headers `((Location . ,uri))) ""))))
 
-(define-public (error)
-  (values (build-response #:code 500)))
+(define-public (internal-error)
+  (values (build-response #:code 500) "Internal error."))
 
 (define (%make-cookie item)
   (let ((item* (string-split item #\=)))

@@ -8,12 +8,27 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (ice-9 match))
 (import (ice-9 rdelim))
 (import (ice-9 threads))
+
+(import (babelia app))
 (import (babelia html2text))
 (import (babelia okvs ustore))
+(import (babelia okvs rstore))
 (import (babelia okvs engine))
 (import (babelia okvs wiredtiger))
 (import (babelia okvs fts))
+(import (babelia web))
 (import (babelia web api secret))
+
+
+;; TODO: rework the config to include eviction trigger and eviction
+;; target, max number of thread set to the count of cpu core:
+;;
+;;   https://source.wiredtiger.com/3.2.0/tune_cache.html
+;;
+;; Check statistics.
+(define %config `((cache . ,(* 5 1024 1024))
+                  (wal . ,(* 1 1024 1024))
+                  (mmap . #f)))
 
 (define (current-milliseconds)
   (let ((seconds+microseconds (gettimeofday)))
@@ -34,57 +49,10 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
                       (lambda (thunk) (apply thunk '()))
                       for-each-map))
 
-(define counter 0)
+(define rstore (make-rstore engine '(rstore) <document>))
 
-(define (for-each-html proc directory)
-  (ftw directory
-       (lambda (filename statinfo flag)
-         (case flag
-           ((regular)
-            (when (string-suffix? ".html" filename)
-              (set! counter (+ counter 1))
-              (when (= (modulo counter 1000) 0)
-                (pk counter))
-              (proc filename))
-            #t)
-           ((directory) #t)
-           (else #t)))))
-
-(define (index/transaction transaction filename)
-  (let* ((html (call-with-input-file filename read-string))
-         (text (call-with-output-string (lambda (port) (html->text html port)))))
-    (fts-index transaction fts filename text)))
-
-
-;; TODO: rework the config to include eviction trigger and eviction
-;; target, max number of thread set to the count of cpu core:
-;;
-;;   https://source.wiredtiger.com/3.2.0/tune_cache.html
-;;
-;; Check statistics.
-(define %config `((cache . ,(* 5 1024 1024))
-                  (wal . ,(* 1 1024 1024))
-                  (mmap . #f)))
-
-
-(define (index directory)
-  (define okvs (engine-open engine directory %config))
-  (pk "indexing:" directory)
-  (for-each-html (lambda (filename)
-                   (engine-in-transaction engine okvs
-                     (lambda (transaction)
-                       (index/transaction transaction filename))))
-                   directory)
-  (engine-close engine okvs))
-
-(define (search directory query)
-  (pk "search for:" query)
-  (let* ((okvs (engine-open engine directory %config))
-         (start (current-milliseconds))
-         (results (fts-query okvs fts query)))
-    (pk "query time in milliseconds" (- (current-milliseconds) start))
-    (for-each pk results)
-    (engine-close engine okvs)))
+;; TODO: use app everywhere
+(define app (make-app #f engine %config ustore rstore fts))
 
 (define (benchmark-once okvs fts query)
   (let* ((start (current-milliseconds)))
@@ -142,8 +110,6 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 
 (define-public (main args)
   (match (cdr args)
-    (`("index" ,directory) (index directory))
-    (`("search" ,directory . ,keywords) (search directory (string-join keywords " ")))
     (`("benchmark" ,directory . ,keywords)
      (pk "average in milliseconds" (benchmark directory (string-join keywords " "))))
     (`("word" "counter" ,directory)
@@ -159,4 +125,5 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
     (`("stem" "stop" "update" ,directory ,filename) (stem-stop-update directory filename))
     ;; TODO: eventually all commands must start with a directory and ends with a rest.
     (`(,directory "web" "api" "secret" "generate" . ,args)
-     (subcommand-secret-generate directory args))))
+     (subcommand-secret-generate directory args))
+    (`(,directory "web" "run") (subcommand-web-run #f))))

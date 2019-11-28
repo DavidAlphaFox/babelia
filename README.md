@@ -102,7 +102,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] babelia web api secret generate --force: create file with the
       hex string of the secret.
 - [x] okvs abstraction: rstore
+- [x] guard all exception and return 500 in web browser,
 - [ ] babelia web /api/index
+  - [ ] title: min 2, max 100 truncated
+  - [ ] text: min 280 chars, max ???a
   - [ ] extract and sanitize title of the document before indexing: max 100 chars
   - [ ] create small preview: max 280 chars
 - [ ] crawler:
@@ -170,7 +173,9 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## TODO
 
-- [ ] entity recognition
-- [ ] inbound links
-- [ ] domain or page outbound links
-- [ ] page rank
+- [ ] more validation, use R7RS raise and guard (to make the
+      transaction fail),
+- [ ] entity recognition,
+- [ ] inbound links,
+- [ ] domain or page outbound links,
+- [ ] page rank.
