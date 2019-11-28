@@ -118,7 +118,7 @@
                                                        (fts-ustore fts)
                                                        (car words*))
                                          (count (lambda (x) (string=? x (car words*))) words))
-                                    bag))))))
+                                   bag))))))
 
 (define (fts-text-store transaction fts uid text)
   (let ((mapping (make-mapping (fts-engine fts)
@@ -181,8 +181,8 @@
 (define (tiptop limit uid+score) ;; TODO optimize with a scheme mapping
   (define (maybe-take lst limit)
     (if (<= (length lst) limit)
-            lst
-            (take lst limit)))
+        lst
+        (take lst limit)))
   (maybe-take (sort uid+score (lambda (a b) (>= (cdr a) (cdr b)))) limit))
 
 (define (assoc* key alist)
@@ -291,8 +291,8 @@
          (counters (counter-fold okvs cons '() counter))
          (counters (sort counters (lambda (a b) (< (cdr a) (cdr b))))))
     (map (lambda (x)
-                (cons (ulid->object okvs (fts-ustore fts) (car x))
-                      (cdr x)))
+           (cons (ulid->object okvs (fts-ustore fts) (car x))
+                 (cdr x)))
          counters)))
 
 (define-public (fts-stem-counter okvs fts)
@@ -301,8 +301,8 @@
          (counters (counter-fold okvs cons '() counter))
          (counters (sort counters (lambda (a b) (< (cdr a) (cdr b))))))
     (map (lambda (x)
-                (cons (ulid->object okvs (fts-ustore fts) (car x))
-                      (cdr x)))
+           (cons (ulid->object okvs (fts-ustore fts) (car x))
+                 (cdr x)))
          counters)))
 
 (define-public (fts-stem-stop-update okvs fts stems)
