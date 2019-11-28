@@ -101,13 +101,18 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] reject queries which seed is a stop word
 - [x] babelia web api secret generate --force: create file with the
       hex string of the secret.
-- [x] okvs abstraction: rstore
-- [x] guard all exception and return 500 in web browser,
-- [ ] babelia web /api/index
+- [x] okvs abstraction: record store (rstore)
+- [x] web: guard all exception and return 500,
+- [ ] okvs fts fts-index:
+  - [ ] input: html (with possibly microformats)
+  - [ ] output: 2 values, a bolean and something else:
+    - [ ] #f and a reason, It means that is was not indexed,
+    - [ ] #t and (cons 'title 'preview), It means it was indexed.
   - [ ] title: min 2, max 100 truncated
-  - [ ] text: min 280 chars, max ???a
+  - [ ] text: min 280 chars, max ???
   - [ ] extract and sanitize title of the document before indexing: max 100 chars
   - [ ] create small preview: max 280 chars
+- [ ] babelia web /api/index
 - [ ] crawler:
   - [ ] use nstore in separate directory
   - [ ] babelia crawler run: same command but another processus.
