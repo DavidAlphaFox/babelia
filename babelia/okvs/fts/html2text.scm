@@ -1,4 +1,4 @@
-(define-module (babelia html2text))
+(define-module (babelia okvs fts html2text))
 
 (import (babelia htmlprag))
 

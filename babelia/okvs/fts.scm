@@ -3,15 +3,20 @@
 (import (scheme base))
 
 (import (srfi srfi-1))
+(import (srfi srfi-2))
+(import (only (sxml xpath) sxpath))
 
 (import (babelia stemmer))
 (import (babelia generator))
 (import (babelia bytevector))
+(import (babelia htmlprag))
+(import (babelia okvs ulid))
 (import (babelia okvs mapping))
 (import (babelia okvs engine))
 (import (babelia okvs ustore))
 (import (babelia okvs counter))
 (import (babelia okvs multimap))
+(import (babelia okvs fts html2text))
 
 
 ;; TODO: i18n
@@ -143,11 +148,54 @@
                     (uniquify (text->words text)))))
     (for-each (lambda (word) (fts-word-increment transaction fts word)) words)))
 
-(define-public (fts-index transaction fts uid text)
+
+(define (clean-string string)
+  "replace spans of #\space into a single space"
+  (string-join (filter (compose not string-null?) (string-split string #\space)) " "))
+
+(define (string-single-line string)
+  "Convert a string with whitespaces to a single line string with
+   one #\space between each words."
+  (let loop ((chars (string->list string))
+             (out '()))
+    (if (null? chars)
+        (if (null? out)
+            #f
+            (clean-string (list->string (reverse out)))
+        (if (char-whitespace? (car chars))
+            (loop (cdr chars) (cons #\space out))
+            (loop (cdr chars) (cons (car chars) out)))))))
+
+(define (string-truncate string max)
+  (if (< (string-length string) max)
+      string
+      (list->string (take (string->list string) max))))
+
+(define html-extract-title
+  (compose (lambda (string) (string-truncate string 100))
+           string-single-line
+           (sxpath '(html head title *text*))))
+
+(define (text-extract-preview string)
+  (string-truncate string 280))
+
+(define (valid? title preview)
+  (and (>= (string-length title) 3)
+       (>= (string-length preview) 280)))
+
+(define-public (fts-index transaction fts html)
   "Index TEXT string with UID as an identifier."
-  ;; TODO: check whether uid already is indexed.
-  (when (fts-index-stem transaction fts text uid)
-    (fts-index-text transaction fts text uid)))
+  (let ((uid (ulid))
+        (text (call-with-output-string (lambda (port) (html->text html port))))
+        (html (html->sxml html)))
+    (let ((title (html-extract-title html))
+          (preview (text-extract-preview text)))
+      (if (valid? title preview)
+          (raise (cons 'babelia/index "title or preview is invalid."))
+          (if (not (fts-index-stem transaction fts text uid))
+              (raise (cons 'babelia/index "no stems"))
+              (begin (fts-index-text transaction fts text uid)
+                     (values uid title preview)))))))
 
 (define (fts-query-parse tx fts string)
   (let loop ((keywords (filter (compose not string-null?)

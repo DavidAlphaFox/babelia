@@ -92,13 +92,13 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       hex string of the secret.
 - [x] okvs abstraction: record store (rstore)
 - [x] web: guard all exception and return 500,
-- [ ] okvs fts fts-index:
-  - [ ] input: html (with possibly microformats)
-  - [ ] output: three values: uid, title, and preview
-  - [ ] can raise babelia/index error with a reason.
-  - [ ] title: min 2, max 100 truncated
-  - [ ] text: min 280 chars, max ???
-  - [ ] create small preview: max 280 chars
+- [x] okvs fts fts-index:
+  - [x] input: html (with possibly microformats)
+  - [x] output: three values: uid, title, and preview
+  - [x] can raise babelia/index error with a reason.
+  - [x] title: min 3, max 100 truncated
+  - [x] text: min 280 chars, max ???
+  - [x] create small preview: max 280 chars
 - [ ] babelia web /api/index
 - [ ] crawler:
   - [ ] use nstore in separate directory

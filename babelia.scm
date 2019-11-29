@@ -10,7 +10,6 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (ice-9 threads))
 
 (import (babelia app))
-(import (babelia html2text))
 (import (babelia okvs ustore))
 (import (babelia okvs rstore))
 (import (babelia okvs engine))
