@@ -73,17 +73,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 
 ## v0.2.0
 
-- [ ] move to R7RS https://git.sr.ht/~amz3/guile-arew
-  - [x] scheme bitwise
-  - [x] scheme bytevector
-  - [x] scheme comparator
-  - [x] scheme generator
-  - [x] scheme hash-table
-  - [x] scheme list
-  - [x] scheme mapping
-  - [ ] scheme mapping hash
-  - [x] scheme set
-  - [x] guix: guile-build-system
 - [x] logging library with colored output
 - [x] okvs/fts: consider all keywords
 - [x] okvs/wiredtiger: move the lock to the record
@@ -105,12 +94,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] web: guard all exception and return 500,
 - [ ] okvs fts fts-index:
   - [ ] input: html (with possibly microformats)
-  - [ ] output: 2 values, a bolean and something else:
-    - [ ] #f and a reason, It means that is was not indexed,
-    - [ ] #t and (cons 'title 'preview), It means it was indexed.
+  - [ ] output: three values: uid, title, and preview
+  - [ ] can raise babelia/index error with a reason.
   - [ ] title: min 2, max 100 truncated
   - [ ] text: min 280 chars, max ???
-  - [ ] extract and sanitize title of the document before indexing: max 100 chars
   - [ ] create small preview: max 280 chars
 - [ ] babelia web /api/index
 - [ ] crawler:
@@ -131,35 +118,38 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] keep track of what is done and what is todo,
   - [ ] add to the todo only if is html and utf8, so before indexing
         the source document.
-- [ ] normalize query: remove useless whitespace to play nice with the cache
 - [ ] web: input query
 - [ ] web: display results
+
+## v0.3.0
+
+- [ ] move to R7RS https://git.sr.ht/~amz3/guile-arew
+  - [x] scheme bitwise
+  - [x] scheme bytevector
+  - [x] scheme comparator
+  - [x] scheme generator
+  - [x] scheme hash-table
+  - [x] scheme list
+  - [x] scheme mapping
+  - [ ] scheme mapping hash
+  - [x] scheme set
+  - [x] guix: guile-build-system
+- [ ] normalize query: remove useless whitespace to play nice with the cache
 - [ ] log queries that take more that 5 seconds (configurable),
 - [ ] babelia queries show: output slow queries,
 - [ ] babelia cache update FILENAME
 - [ ] babelia cache refresh
-
-## v0.3.0
-
 - [ ] babelia web api secret generate: encrypt the secret
 - [ ] babelia web api secret show
 - [ ] index: support structured documents
 - [ ] guix package definition for dependencies,
 - [ ] benchmark with scheme world dump, and commit the resulting,
 - [ ] need to split the number of cores between wiredtiger and the
-      app. Make thread-pool size configureable,
+      app.
+- [ ] Make thread-pool size configureable,
 - [ ] okvs fts: maybe-index and reindex (delete + add)
 - [ ] federation
-- [ ] okvs foundationdb backend
-- [ ] okvs nstore: improve prefix handling.
-- [ ] okvs pack: optimize algorithm of nested list with a single pass
-- [ ] okvs pack: past argument as a list instead of rest
-- [ ] rankedset
 - [ ] search pad
-- [ ] sensimark
-- [ ] spell checking
-- [ ] babelia index: warc file input
-- [ ] babelia crawler: output warc file
 - [ ] babelia api secret show: add it
 - [ ] babelia api secret generate: add it
 - [ ] okvs/fts:
@@ -170,17 +160,25 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [ ] two way synonyms
   - [ ] phrase matching
   - [ ] td-idf
-- [ ] check.scm: make it possible to execute tests from low level to
-      high level (or high level to low level)
 - [ ] babelia crawler sitemap support
 - [ ] babelia crawler wikimedia: use rest api, otherwise fallback to
       wiki.
 
 ## TODO
 
+- [ ] okvs nstore: improve prefix handling.
+- [ ] spell checking
+- [ ] sensimark
+- [ ] okvs pack: optimize algorithm of nested list with a single pass
+- [ ] okvs pack: past argument as a list instead of rest
+- [ ] babelia index: warc file input
+- [ ] babelia crawler: output warc file
+- [ ] check.scm: make it possible to execute tests from low level to
+      high level (or high level to low level)
 - [ ] more validation, use R7RS raise and guard (to make the
       transaction fail),
 - [ ] entity recognition,
 - [ ] inbound links,
 - [ ] domain or page outbound links,
 - [ ] page rank.
+- [ ] gumbo bindings https://github.com/google/gumbo-parser
