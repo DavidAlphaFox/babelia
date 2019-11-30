@@ -7,26 +7,30 @@
 (import (babelia pool))
 (import (babelia okvs engine))
 (import (babelia okvs fts))
+(import (babelia okvs rstore))
 (import (babelia web helpers))
 
 (import (ice-9 threads))
+(import (babelia okvs wiredtiger))
 
 
 (define-public (route/api/index app body)
-  (guard (ex ((and (pair? ex) (eq? (car ex) 'babelia/index))
-              (bad-request (cdr ex)))
-             (else (pk ex)))
-    (let* ((body (utf8->string body))
-           (url+html (call-with-input-string body read))
-           (url (car url+html))
-           (html (cdr url+html)))
-      (log-trace "indexing" `((url . ,url)))
-      (engine-in-transaction (app-engine app) (app-okvs app)
-        (lambda (transaction)
-          (call-with-values (lambda () (fts-index transaction (app-fts app) body))
-            (lambda (uid title preview)
-              (rstore-update transaction
-                             (app-rstore app)
-                             uid
-                             (make-document url title preview))))))))
-  (scheme->response 'OK))
+  ((pool-apply
+    (lambda ()
+      (guard (ex ((and (pair? ex) (eq? (car ex) 'babelia/index))
+                  (lambda () (bad-request (cdr ex)))))
+        (let* ((body (utf8->string body))
+               (url+html (call-with-input-string body read))
+               (url (car url+html))
+               (html (cdr url+html)))
+          (log-debug "indexing" `((url . ,url)))
+          (pk 'engine? (okvs? (app-okvs app)))
+          (engine-in-transaction (app-engine app) (app-okvs app)
+            (lambda (transaction)
+              (call-with-values (lambda () (fts-index transaction (app-fts app) body))
+                (lambda (uid title preview)
+                  (rstore-update transaction
+                                 (app-rstore app)
+                                 uid
+                                 (make-document url title preview))))))
+          (lambda () (scheme->response 'OK))))))))

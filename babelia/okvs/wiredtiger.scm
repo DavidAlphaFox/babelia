@@ -46,6 +46,7 @@
   (hook-begin okvs-hook-on-transaction-begin)
   (hook-commit okvs-hook-on-transaction-commit))
 
+(export okvs?)
 (export okvs-hook-on-transaction-begin)
 (export okvs-hook-on-transaction-commit)
 

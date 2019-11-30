@@ -11,7 +11,9 @@
 (import (babelia web helpers))
 (import (babelia web static))
 (import (babelia web api index))
+(import (babelia web api search))
 (import (babelia pool))
+
 
 (define (template class body)
   `((doctype "html")
@@ -43,11 +45,14 @@
     ('(GET) (route/index))
     ('(GET "api" "status") (route/api/status))
     ('(POST "api" "index") (route/api/index app body))
+    ('(GET "api" "search") (route/api/search app (uri-query (request-uri request))))
     (('GET "static" path ...) (render-static-asset path))
     (_ (not-found (uri-path (request-uri request))))))
 
 (define (router/guard app request body)
-  (guard (ex (else (internal-error)))
+  (guard (ex (else
+              (log-error "internal error" ex)
+              (internal-error)))
     (router app request body)))
 
 (define-public (subcommand-web-run app)

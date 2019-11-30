@@ -1,9 +1,3 @@
-#!/bin/sh
-# -*- scheme -*-
-exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
-!#
-(define-module (babelia))
-
 (import (ice-9 ftw))
 (import (ice-9 match))
 (import (ice-9 rdelim))
@@ -13,6 +7,7 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 
 (import (babelia app))
 (import (babelia log))
+(import (babelia pool))
 (import (babelia okvs ustore))
 (import (babelia okvs rstore))
 (import (babelia okvs engine))
@@ -44,15 +39,12 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 
 (define ustore (make-ustore engine '(ustore)))
 
-(define (for-each-map sproc pproc lst)
-  (n-for-each-par-map (- (current-processor-count) 1) sproc pproc lst))
-
 (define fts (make-fts engine
                       ustore
                       '(fts)
                       10 ;; return top 10 results
-                      (lambda (thunk) (apply thunk '()))
-                      for-each-map))
+                      pool-apply
+                      pool-for-each-par-map))
 
 (define rstore (make-rstore engine '(rstore) <document>))
 
@@ -109,21 +101,19 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (define (stem-stop-show directory)
   (for-each print (fts-stem-stop-ref okvs fts)))
 
-(define-public (main args)
-  (match (cddr args)
-    (`("benchmark" . ,keywords)
-     (pk "average in milliseconds" (benchmark directory (string-join keywords " "))))
-    (`("word" "counter")
-     (for-each print (fts-word-counter okvs fts)))
-    (`("stem" "counter")
-     (for-each print (fts-stem-counter okvs fts)))
-    (`("stem" "stop" "guess" ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
-    (`("stem" "stop" "show") (stem-stop-show directory))
-    (`("stem" "stop" "update" ,filename) (stem-stop-update directory filename))
-    ;; TODO: eventually all commands must start with a directory and ends with a rest.
-    (`("web" "api" "secret" "generate" . ,args)
-     (subcommand-secret-generate directory args))
-    (`("web" "run") (subcommand-web-run app))))
-
+(match (cddr (program-arguments))
+  (`("benchmark" . ,keywords)
+   (pk "average in milliseconds" (benchmark directory (string-join keywords " "))))
+  (`("word" "counter")
+   (for-each print (fts-word-counter okvs fts)))
+  (`("stem" "counter")
+   (for-each print (fts-stem-counter okvs fts)))
+  (`("stem" "stop" "guess" ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
+  (`("stem" "stop" "show") (stem-stop-show directory))
+  (`("stem" "stop" "update" ,filename) (stem-stop-update directory filename))
+  ;; TODO: eventually all commands must start with a directory and ends with a rest.
+  (`("web" "api" "secret" "generate" . ,args)
+   (subcommand-secret-generate directory args))
+  (`("web" "run") (subcommand-web-run app)))
 
 (engine-close engine okvs)
