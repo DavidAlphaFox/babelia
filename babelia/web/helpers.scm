@@ -44,6 +44,10 @@ example: \"/foo/bar\" yields '(\"foo\" \"bar\")."
   (values (build-response #:code 403)
           "Forbidden"))
 
+(define-public (bad-request reason)
+  (values (build-response #:code 400)
+          reason))
+
 (define-public (not-found uri)
   (values (build-response #:code 404)
           (string-append "Resource not found: " uri)))

@@ -6,10 +6,12 @@
 (import (web uri))
 (import (ice-9 match))
 
+(import (babelia log))
 (import (babelia web server))
 (import (babelia web helpers))
 (import (babelia web static))
-
+(import (babelia web api index))
+(import (babelia pool))
 
 (define (template class body)
   `((doctype "html")
@@ -32,12 +34,15 @@
    (template "index" "Hello, world!")))
 
 (define (route/api/status)
-  (scheme->response "OK"))
+  (scheme->response 'OK))
 
 (define (router app request body)
+  (log-debug "new request" `((method . ,(request-method request))
+                             (path . ,(uri->string (request-uri request)))))
   (match (cons (request-method request) (request-path-components request))
     ('(GET) (route/index))
     ('(GET "api" "status") (route/api/status))
+    ('(POST "api" "index") (route/api/index app body))
     (('GET "static" path ...) (render-static-asset path))
     (_ (not-found (uri-path (request-uri request))))))
 
@@ -46,4 +51,7 @@
     (router app request body)))
 
 (define-public (subcommand-web-run app)
+  (log-debug "pool init")
+  (pool-init)
+  (log-info "web server starting at port 8080...")
   (run-server (lambda (request body) (router/guard app request body))))

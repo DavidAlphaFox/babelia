@@ -150,21 +150,21 @@
 
 
 (define (clean-string string)
-  "replace spans of #\space into a single space"
+  "replace spans of space char into a single space"
   (string-join (filter (compose not string-null?) (string-split string #\space)) " "))
 
 (define (string-single-line string)
   "Convert a string with whitespaces to a single line string with
-   one #\space between each words."
+   one space char between each words."
   (let loop ((chars (string->list string))
              (out '()))
     (if (null? chars)
         (if (null? out)
             #f
-            (clean-string (list->string (reverse out)))
+            (clean-string (list->string (reverse out))))
         (if (char-whitespace? (car chars))
             (loop (cdr chars) (cons #\space out))
-            (loop (cdr chars) (cons (car chars) out)))))))
+            (loop (cdr chars) (cons (car chars) out))))))
 
 (define (string-truncate string max)
   (if (< (string-length string) max)
@@ -174,6 +174,7 @@
 (define html-extract-title
   (compose (lambda (string) (string-truncate string 100))
            string-single-line
+           car
            (sxpath '(html head title *text*))))
 
 (define (text-extract-preview string)
@@ -190,7 +191,7 @@
         (html (html->sxml html)))
     (let ((title (html-extract-title html))
           (preview (text-extract-preview text)))
-      (if (valid? title preview)
+      (if (not (valid? title preview))
           (raise (cons 'babelia/index "title or preview is invalid."))
           (if (not (fts-index-stem transaction fts text uid))
               (raise (cons 'babelia/index "no stems"))

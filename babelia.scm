@@ -9,7 +9,10 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (ice-9 rdelim))
 (import (ice-9 threads))
 
+(import (scheme process-context))
+
 (import (babelia app))
+(import (babelia log))
 (import (babelia okvs ustore))
 (import (babelia okvs rstore))
 (import (babelia okvs engine))
@@ -18,6 +21,9 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (import (babelia web))
 (import (babelia web api secret))
 
+
+
+(log-toggle!)
 
 ;; TODO: rework the config to include eviction trigger and eviction
 ;; target, max number of thread set to the count of cpu core:
@@ -51,7 +57,9 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
 (define rstore (make-rstore engine '(rstore) <document>))
 
 ;; TODO: use app everywhere
-(define app (make-app #f engine %config ustore rstore fts))
+(define directory (cadr (program-arguments)))
+(define okvs (engine-open engine directory %config))
+(define app (make-app #f engine okvs ustore rstore fts))
 
 (define (benchmark-once okvs fts query)
   (let* ((start (current-milliseconds)))
@@ -77,10 +85,8 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
   (display obj) (newline))
 
 (define (stems-ref directory)
-  (let* ((okvs (engine-open engine directory %config))
-         (out (fts-stem-counter okvs fts)))
-      (engine-close engine okvs)
-      (reverse out)))
+  (reverse (fts-stem-counter okvs fts)))
+
 
 (define (stem-stop-guess directory min)
   ;; TODO: speed up the search with divide-and-conquer strategy, that
@@ -97,32 +103,27 @@ exec guile -L $(pwd) -e '(@ (babelia) main)' -s "$0" "$@"
                 (loop (cdr stems) (cons (car stems) out))))))))
 
 (define (stem-stop-update directory filename)
-  (let ((okvs (engine-open engine directory %config))
-        (stems (string-split (call-with-input-file filename read-string) #\newline)))
-    (fts-stem-stop-update okvs fts stems)
-    (engine-close engine okvs)))
+  (let ((stems (string-split (call-with-input-file filename read-string) #\newline)))
+    (fts-stem-stop-update okvs fts stems)))
 
 (define (stem-stop-show directory)
-  (let ((okvs (engine-open engine directory %config)))
-    (for-each print (fts-stem-stop-ref okvs fts))
-    (engine-close engine okvs)))
+  (for-each print (fts-stem-stop-ref okvs fts)))
 
 (define-public (main args)
-  (match (cdr args)
-    (`("benchmark" ,directory . ,keywords)
+  (match (cddr args)
+    (`("benchmark" . ,keywords)
      (pk "average in milliseconds" (benchmark directory (string-join keywords " "))))
-    (`("word" "counter" ,directory)
-       (let* ((okvs (engine-open engine directory %config)))
-         (for-each print (fts-word-counter okvs fts))
-         (engine-close engine okvs)))
-    (`("stem" "counter" ,directory)
-       (let* ((okvs (engine-open engine directory %config)))
-         (for-each print (fts-stem-counter okvs fts))
-         (engine-close engine okvs)))
-    (`("stem" "stop" "guess" ,directory ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
-    (`("stem" "stop" "show" ,directory) (stem-stop-show directory))
-    (`("stem" "stop" "update" ,directory ,filename) (stem-stop-update directory filename))
+    (`("word" "counter")
+     (for-each print (fts-word-counter okvs fts)))
+    (`("stem" "counter")
+     (for-each print (fts-stem-counter okvs fts)))
+    (`("stem" "stop" "guess" ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
+    (`("stem" "stop" "show") (stem-stop-show directory))
+    (`("stem" "stop" "update" ,filename) (stem-stop-update directory filename))
     ;; TODO: eventually all commands must start with a directory and ends with a rest.
-    (`(,directory "web" "api" "secret" "generate" . ,args)
+    (`("web" "api" "secret" "generate" . ,args)
      (subcommand-secret-generate directory args))
-    (`(,directory "web" "run") (subcommand-web-run #f))))
+    (`("web" "run") (subcommand-web-run app))))
+
+
+(engine-close engine okvs)

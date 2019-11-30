@@ -4,11 +4,11 @@
 
 
 (define-record-type <app>
-  (make-app secret engine engine-config ustore rstore fts)
+  (make-app secret engine okvs ustore rstore fts)
   app?
   (secret app-secret)
   (engine app-engine)
-  (engine-config app-engine-config)
+  (okvs app-okvs)
   (ustore app-ustore)
   (rstore app-rstore)
   (fts app-fts))
@@ -17,7 +17,7 @@
 (export app?)
 (export app-secret)
 (export app-engine)
-(export app-engine-config)
+(export app-okvs)
 (export app-ustore)
 (export app-rstore)
 (export app-fts)
