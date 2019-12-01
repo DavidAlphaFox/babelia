@@ -1,7 +1,9 @@
 (define-module (tests))
 
+(import (scheme base))
 (import (babelia testing))
-(import (only (rnrs) raise))
+
+
 
 (export test-test)
 (export test-test-raise)
