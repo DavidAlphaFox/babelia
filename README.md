@@ -99,7 +99,8 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] title: min 3, max 100 truncated
   - [x] text: min 280 chars, max ???
   - [x] create small preview: max 280 chars
-- [ ] babelia web /api/index
+- [x] babelia web /api/index
+- [x] babelia web /api/search
 - [ ] crawler:
   - [ ] use nstore in separate directory
   - [ ] babelia crawler run: same command but another processus.
