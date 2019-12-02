@@ -21,12 +21,38 @@ sitemap: https://hyper.dev/other.xml
 
 (define robots.txt->scm (@@ (babelia crawler robots) robots.txt->scm))
 
-(define-public test-001
-  (test '(("babelia" 5 ("/cgi/" "/nobot")) (default #f ()))
-        (robots.txt->scm "sitemap: foobar
+(define robots.txt (make-robots.txt "babelia" "sitemap: foobar
+
+user-agent: babelia
+crawl-delay: 666
 
 user-agent: babelia
 #  comment
 disallow: /nobot
 crawl-delay: 5
-disallow: /cgi/*/script")))
+disallow: /cgi/*/script
+"))
+
+(define-public test-001
+  (test 5
+        (robots.txt-delay robots.txt)))
+
+(define-public test-002
+  (test #t
+        (robots.txt-allow? robots.txt "/path/to/somewhere")))
+
+(define-public test-003
+  (test #f
+        (robots.txt-allow? robots.txt "/nobot")))
+
+(define-public test-004
+  (test #f
+        (robots.txt-allow? robots.txt "/nobot/sub/component")))
+
+(define-public test-005
+  (test #f
+        (robots.txt-allow? robots.txt "/cgi/foo/bar")))
+
+(define-public test-006
+  (test #t
+        (robots.txt-allow? robots.txt "/cgi")))

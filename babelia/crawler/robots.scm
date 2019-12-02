@@ -4,6 +4,9 @@
 ;;
 (define-module (babelia crawler robots))
 
+(import (scheme base))
+(import (scheme list))
+
 
 (define (field-split string)
   (let loop ((string (string->list string))
@@ -61,7 +64,8 @@
              (current '(default #f ()))
              (out '()))
     (if (null? lines)
-        (cons current out)
+        (delete-duplicates (cons current out)
+                           (lambda (x y) (equal? (car x) (car y))))
         (let* ((line (car lines))
                (line (string-trim-both line))
                (index (or (string-index line #\#) (string-length line)))
@@ -93,3 +97,31 @@
                         out))
                  (else ;; ignore everything else
                   (loop (cdr lines) current out)))))))))
+
+(define-record-type <robots.txt>
+  (%make-robots.txt delay disallow)
+  robots.txt?
+  (delay robots.txt-delay)
+  (disallow robots.txt-disallow))
+
+(export robots.txt-delay)
+
+(define-public (make-robots.txt user-agent string)
+  (let loop ((lst (robots.txt->scm string)))
+    (if (null? lst)
+        (%make-robots.txt #f '())
+        (let ((item (car lst)))
+          (if (or
+               (eq? (car item) 'default)
+               (string=? (car item) user-agent)
+               (string=? (car item) "*"))
+              (%make-robots.txt (cadr item) (caddr item))
+              (loop (cdr lst)))))))
+
+(define-public (robots.txt-allow? robots.txt path)
+  (let loop ((disallow (robots.txt-disallow robots.txt)))
+    (if (null? disallow)
+        #t
+        (if (string-prefix? (car disallow) path)
+            #f
+            (loop (cdr disallow))))))
