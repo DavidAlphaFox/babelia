@@ -18,7 +18,6 @@ sitemap: https://hyper.dev/other.xml
 
 ")))
 
-
 (define robots.txt->scm (@@ (babelia crawler robots) robots.txt->scm))
 
 (define robots.txt (make-robots.txt "babelia" "sitemap: foobar
