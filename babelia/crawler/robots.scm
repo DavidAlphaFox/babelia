@@ -48,8 +48,6 @@
   ;;
   ;; - Line based
   ;;
-  ;; - Do not repeat domain name, except for sitemaps
-  ;;
   ;; - field names are not sensitive to case.
   ;;
   ;; - user-agent field name will start a specific crawler
@@ -59,7 +57,6 @@
   ;;
   ;; - Keep track of 'disallow' as a prefix of a path
   ;;
-  ;; Also, 'disallow' rules are not inherited from star user-agent.
   (let loop ((lines (string-split string #\newline))
              (current '(default #f ()))
              (out '()))
