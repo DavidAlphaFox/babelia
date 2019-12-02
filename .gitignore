@@ -6,4 +6,5 @@
 *.scm#*
 .#*.scm
 
-bug-guix/
+scheme-lang-index/
+scheme-lang-crawler/
