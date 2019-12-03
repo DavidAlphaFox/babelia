@@ -55,3 +55,36 @@ disallow: /cgi/*/script
 (define-public test-006
   (test #t
         (robots.txt-allow? robots.txt "/cgi")))
+
+(define robots.txt2 (make-robots.txt "babelia" "sitemap: foobar
+
+user-agent: *
+#  comment
+disallow: /nobot
+crawl-delay: 5
+disallow: /cgi/*/script
+"))
+
+(define-public test-007
+  (test 5
+        (robots.txt-delay robots.txt2)))
+
+(define-public test-008
+  (test #t
+        (robots.txt-allow? robots.txt2 "/path/to/somewhere")))
+
+(define-public test-009
+  (test #f
+        (robots.txt-allow? robots.txt2 "/nobot")))
+
+(define-public test-010
+  (test #f
+        (robots.txt-allow? robots.txt2 "/nobot/sub/component")))
+
+(define-public test-011
+  (test #f
+        (robots.txt-allow? robots.txt2 "/cgi/foo/bar")))
+
+(define-public test-012
+  (test #t
+        (robots.txt-allow? robots.txt2 "/cgi")))
