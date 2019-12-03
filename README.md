@@ -102,6 +102,9 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
 - [x] babelia web /api/index
 - [x] babelia web /api/search
 - [ ] crawler:
+  - [x] (make-robots.txt user-agent string)
+  - [x] (robots.txt-delay robots.txt path) => #f or seconds,
+  - [x] (robots.txt-allow? robots.txt path) => #f or #t,
   - [ ] use nstore in separate directory
   - [ ] babelia crawler run: same command but another processus.
   - [ ] fiber main thread + workers
@@ -114,8 +117,6 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       - [ ] check that it is html and utf8,
       - [ ] add linked pages to todo,
       - [ ] index the index page,
-  - [ ] (robots.txt-parse) => robots.txt,
-  - [ ] (robots.txt-delay path) => #t, #f or seconds,
   - [ ] keep track of what is done and what is todo,
   - [ ] add to the todo only if is html and utf8, so before indexing
         the source document.
