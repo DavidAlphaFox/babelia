@@ -15,7 +15,7 @@
 (import (babelia okvs fts))
 (import (babelia web))
 (import (babelia web api secret))
-
+(import (babelia crawler))
 
 
 (log-toggle!)
@@ -112,8 +112,8 @@
   (`("stem" "stop" "show") (stem-stop-show directory))
   (`("stem" "stop" "update" ,filename) (stem-stop-update directory filename))
   ;; TODO: eventually all commands must start with a directory and ends with a rest.
-  (`("web" "api" "secret" "generate" . ,args)
-   (subcommand-secret-generate directory args))
-  (`("web" "run") (subcommand-web-run app)))
+  (`("web" "api" "secret" "generate" . ,args) (subcommand-secret-generate directory args))
+  (`("web" "run") (subcommand-web-run app))
+  (`("crawler" "run" ,port) (subcommand-crawler-run app (string->number port))))
 
 (engine-close engine okvs)
