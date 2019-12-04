@@ -171,17 +171,22 @@
       string
       (list->string (take (string->list string) max))))
 
-(define html-extract-title
-  (compose (lambda (string) (string-truncate string 100))
-           string-single-line
-           car
-           (sxpath '(html head title *text*))))
+
+(define xpath-title (sxpath '(html head title *text*)))
+
+(define (html-extract-title sxml)
+  (let ((title (xpath-title sxml)))
+    (if (null? title)
+        #f
+          (string-truncate (string-single-line (car title)) 100))))
 
 (define (text-extract-preview string)
   (string-truncate string 280))
 
 (define (valid? title preview)
-  (and (>= (string-length title) 3)
+  (and title
+       preview
+       (>= (string-length title) 3)
        (>= (string-length preview) 280)))
 
 (define-public (fts-index transaction fts html)
