@@ -105,10 +105,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] (make-robots.txt user-agent string)
   - [x] (robots.txt-delay robots.txt path) => #f or seconds,
   - [x] (robots.txt-allow? robots.txt path) => #f or #t,
-  - [ ] use nstore in separate directory
-  - [ ] babelia crawler run: same command but another processus.
-  - [ ] fiber main thread + workers
-  - [ ] babelia crawler add URL:
+  - [x] use nstore in separate directory
+  - [x] babelia crawler run: same command but another processus.
+  - [x] fiber main thread + workers
+  - [ ] babelia crawler add REMOTE URL:
     - [ ] if has a path, index only the given URL if it is html and
           utf8 and not a redirection,
     - [ ] otherwise, it is a domain:
@@ -118,8 +118,7 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
       - [ ] add linked pages to todo,
       - [ ] index the index page,
   - [ ] keep track of what is done and what is todo,
-  - [ ] add to the todo only if is html and utf8, so before indexing
-        the source document.
+  - [ ] add to the todo only if is html and utf8,
 - [ ] web: input query
 - [ ] web: display results
 
