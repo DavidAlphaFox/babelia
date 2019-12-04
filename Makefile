@@ -24,6 +24,9 @@ benchmarks: bug-guix compile ## Wanna be benchmarks
 repl:  ## Start a guile REPL with rlwrap
 	rlwrap guile -L .
 
+web: ## start the default web server
+	guile -L . babelia.scm scheme-lang-index/ web run
+
 compile:  ## Compile every file at maximum optimization level
 	guild compile -L . -O3 ./babelia.scm
 	guild compile -L . -O3 ./babelia/wiredtiger.scm
