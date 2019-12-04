@@ -4,13 +4,14 @@
 
 
 (define-record-type <app>
-  (make-app secret engine okvs ustore rstore fts)
+  (make-app secret engine okvs ustore rstore nstore fts)
   app?
   (secret app-secret)
   (engine app-engine)
   (okvs app-okvs)
   (ustore app-ustore)
   (rstore app-rstore)
+  (nstore app-nstore)
   (fts app-fts))
 
 (export make-app)
@@ -20,6 +21,7 @@
 (export app-okvs)
 (export app-ustore)
 (export app-rstore)
+(export app-nstore)
 (export app-fts)
 
 (define-record-type <document>

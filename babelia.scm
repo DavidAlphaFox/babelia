@@ -10,6 +10,7 @@
 (import (babelia pool))
 (import (babelia okvs ustore))
 (import (babelia okvs rstore))
+(import (babelia okvs nstore))
 (import (babelia okvs engine))
 (import (babelia okvs wiredtiger))
 (import (babelia okvs fts))
@@ -39,6 +40,10 @@
 
 (define ustore (make-ustore engine '(ustore)))
 
+(define rstore (make-rstore engine '(rstore) <document>))
+
+(define nstore (nstore engine '(nstore) '(uid key value)))
+
 (define fts (make-fts engine
                       ustore
                       '(fts)
@@ -46,12 +51,10 @@
                       pool-apply
                       pool-for-each-par-map))
 
-(define rstore (make-rstore engine '(rstore) <document>))
-
 ;; TODO: use app everywhere
 (define directory (cadr (program-arguments)))
 (define okvs (engine-open engine directory %config))
-(define app (make-app #f engine okvs ustore rstore fts))
+(define app (make-app #f engine okvs ustore rstore nstore fts))
 
 (define (benchmark-once okvs fts query)
   (let* ((start (current-milliseconds)))
