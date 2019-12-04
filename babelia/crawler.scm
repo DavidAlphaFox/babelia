@@ -1,6 +1,6 @@
 (define-module (babelia crawler))
 
-
+(import (scheme assume))
 (import (scheme base))
 (import (scheme list))
 
@@ -87,15 +87,19 @@
     (lambda (_ body) body)))
 
 (define (index remote url document)
-  (http-post (string-append remote "/api/index")
-             #:body (call-with-output-string (lambda (p) (write (cons (uri->string url)
-                                                                      document)
-                                                                p)))))
+  (call-with-values (lambda ()
+                      (http-post (string-append remote "/api/index")
+                                 #:body (call-with-output-string
+                                         (lambda (p) (write (cons (uri->string url)
+                                                                  document)
+                                                            p)))))
+    (lambda (response _)
+      (assume (= (response-code response) 200)))))
 
 (define (add-single-page remote url)
   (let ((body (get url)))
-    (index remote url body)))
-
+    (index remote url body)
+    body))
 
 (define-public (subcommand-crawler-add remote url)
   (if (not (valid? url))
