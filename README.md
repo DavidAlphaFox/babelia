@@ -109,14 +109,14 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] babelia crawler run: same command but another processus.
   - [x] fiber main thread + workers
   - [ ] babelia crawler add REMOTE URL:
-    - [ ] if has a path, index only the given URL if it is html and
-          utf8 and not a redirection,
+    - [ ] if has a path, if it is html and utf8 and not a redirection,
+          index only the given URL
     - [ ] otherwise, it is a domain:
       - [ ] check that it is not a redirection,
-      - [ ] add that to domain todo,
       - [ ] check that it is html and utf8,
       - [ ] add linked pages to todo,
-      - [ ] index the index page,
+      - [ ] index the given page,
+      - [ ] extract links and add to todo with domain,
   - [ ] keep track of what is done and what is todo,
   - [ ] add to the todo only if is html and utf8,
 - [ ] web: input query

@@ -2,8 +2,11 @@
 
 
 (import (scheme base))
+(import (scheme list))
 
 (import (web request))
+(import (web client))
+(import (web response))
 (import (web uri))
 (import (ice-9 match))
 
@@ -57,3 +60,48 @@
   (log-debug "running crawler server on PORT" port)
   (run-server (lambda (request body) (router/guard app request body))
               #:port port))
+
+;; add url
+
+(define (head url)
+  (call-with-values (lambda () (http-get url  #:decode-body? #f #:streaming? #t))
+    (lambda (response _) response)))
+
+(define (valid? url)
+  (let ((response (head url)))
+    (and (= (response-code response) 200)
+         ;; somekind of html content
+         (and=> (assq 'content-type (response-headers response))
+                (lambda (content-type)
+                  (any (lambda (item)
+                         (let ((item (if (symbol? item) (symbol->string item) item)))
+                           (string-contains item "text/html")))
+                       (cdr content-type))))
+         ;; at most 5MB
+         (and=> (assq 'content-length (response-headers response))
+                (lambda (content-length)
+                  (< (cdr content-length) (* 5 1024 1024)))))))
+
+(define (get url)
+  (call-with-values (lambda () (http-get url  #:decode-body? #t #:streaming? #f))
+    (lambda (_ body) body)))
+
+(define (index remote url document)
+  (http-post (string-append remote "/api/index")
+             #:body (call-with-output-string (lambda (p) (write (cons (uri->string url)
+                                                                      document)
+                                                                p)))))
+
+(define (add-single-page remote url)
+  (let ((body (get url)))
+    (index remote url body)))
+
+
+(define-public (subcommand-crawler-add remote url)
+  (if (not (valid? url))
+      (log-error "This is not a valid URL...")
+      (let ((url (string->uri url)))
+        (if (or (string=? (uri-path url) "/")
+                (string-null? (uri-path url)))
+            (add-single-page remote url)
+            (add-domain remote url)))))

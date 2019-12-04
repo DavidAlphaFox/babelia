@@ -117,6 +117,17 @@
   ;; TODO: eventually all commands must start with a directory and ends with a rest.
   (`("web" "api" "secret" "generate" . ,args) (subcommand-secret-generate directory args))
   (`("web" "run") (subcommand-web-run app))
-  (`("crawler" "run" ,port) (subcommand-crawler-run app (string->number port))))
+  (`("crawler" "run" ,port) (subcommand-crawler-run app (string->number port)))
+  (`("crawler" "add" ,remote ,url) (subcommand-crawler-add app remote url))
+  (`("index" ,filename)
+   (let ((body (call-with-input-file filename read-string)))
+     (engine-in-transaction (app-engine app) (app-okvs app)
+       (lambda (transaction)
+         (call-with-values (lambda () (fts-index transaction (app-fts app) body))
+           (lambda (uid title preview)
+             (rstore-update transaction
+                            (app-rstore app)
+                            uid
+                            (make-document filename title preview)))))))))
 
 (engine-close engine okvs)
