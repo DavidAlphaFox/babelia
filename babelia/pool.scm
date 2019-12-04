@@ -13,6 +13,7 @@
 (import (fibers operations))
 (import (babelia thread))
 (import (babelia okvs ulid))
+(import (babelia log))
 
 
 (define %channel #f)
@@ -33,6 +34,7 @@
   (if %channel
       (error 'babelia "pool can not be initialized more than once")
       (let ((channel (make-channel)))
+        (log-debug "pool init")
         (let loop ((index (- (current-processor-count) 1)))
           (unless (zero? index)
             (call-with-new-thread (lambda () (worker channel)))
