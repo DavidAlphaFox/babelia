@@ -12,6 +12,7 @@
 (import (ice-9 match))
 (import (only (sxml xpath) sxpath))
 
+(import (babelia fash))
 (import (babelia app))
 (import (babelia pool))
 (import (babelia log))
@@ -105,11 +106,12 @@
     (lambda (response _)
       (assume (= (response-code response) 200)))))
 
-(define (add-single-page remote url)
+(define (add-single-page app remote url)
   (log-debug "add single page URL at REMOTE" `((url . ,(uri->string url))
                                                (remote . ,remote)))
   (let ((body (get url)))
     (index remote url body)
+    (done app (uri->string url))
     body))
 
 (define extract-href (sxpath '(// a @ href *text*)))
@@ -117,6 +119,34 @@
 (define (unsupported-href href)
   (not (or (string-prefix? "#" href)
            (string-prefix? "mailto:" href))))
+
+(define (done/transaction transaction nstore url)
+  ;; move URL to done in the todo.
+  (log-debug "move URL to done" `((url . ,url)))
+  (let ((uid (generator->list
+              (nstore-select transaction nstore (list (nstore-var 'uid)
+                                                      'todo/url
+                                                      url)))))
+    (when (not (null? uid))
+      (let ((uid (fash-ref (car uid) 'uid)))
+        (nstore-delete! transaction nstore (list uid
+                                                 'todo/url
+                                                 url))
+        (nstore-delete! transaction nstore (list uid
+                                                 'todo/done
+                                                 #f))))
+    (let ((uid (ulid)))
+      (nstore-add! transaction nstore (list uid
+                                            'todo/url
+                                            url))
+      (nstore-add! transaction nstore (list uid
+                                            'todo/done
+                                            #t)))))
+
+(define (done app url)
+  (engine-in-transaction (app-engine app) (app-okvs app)
+    (lambda (transaction)
+      (done/transaction transaction (app-nstore app) url))))
 
 (define (todo/transaction transaction nstore url)
   ;; add URL to the todo only if it is not already there.
@@ -134,7 +164,6 @@
                                               'todo/done
                                               #f))))))
 
-
 (define (todo app url)
   (engine-in-transaction (app-engine app) (app-okvs app)
     (lambda (transaction)
@@ -143,7 +172,7 @@
 (define (add-domain app remote domain)
   (log-info "add DOMAIN at REMOTE" `((domain . ,domain)
                                      (remote . ,remote)))
-  (let* ((body (add-single-page remote (string->uri domain)))
+  (let* ((body (add-single-page app remote (string->uri domain)))
          (html (html->sxml body))
          (hrefs (extract-href html))
          (hrefs (filter unsupported-href hrefs))
@@ -162,4 +191,4 @@
         (if (or (string=? (uri-path url) "/")
                 (string-null? (uri-path url)))
             (add-domain app remote (uri->string url))
-            (add-single-page remote url)))))
+            (add-single-page app remote url)))))
