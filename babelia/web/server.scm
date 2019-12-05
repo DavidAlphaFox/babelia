@@ -242,6 +242,7 @@ on the procedure being called at any particular time."
             (sigaction SIGINT #f))))))
 
 (define* (run-server handler #:key
+                     (init #f)
                      (host #f)
                      (family AF_INET)
                      (addr (if host
@@ -278,6 +279,8 @@ before sending back to the client."
      (lambda ()
        (run-fibers
         (lambda ()
+          (when init
+            (spawn-fiber init))
           (spawn-fiber (lambda () (socket-loop socket handler)))
           (wait finished?))
         #:parallelism 1
