@@ -82,7 +82,6 @@
 (define (stems-ref directory)
   (reverse (fts-stem-counter okvs fts)))
 
-
 (define (stem-stop-guess directory min)
   ;; TODO: speed up the search with divide-and-conquer strategy, that
   ;; is a dichotomy.
@@ -117,7 +116,7 @@
   ;; TODO: eventually all commands must start with a directory and ends with a rest.
   (`("web" "api" "secret" "generate" . ,args) (subcommand-secret-generate directory args))
   (`("web" "run") (subcommand-web-run app))
-  (`("crawler" "run" ,port) (subcommand-crawler-run app (string->number port)))
+  (`("crawler" "run" ,port ,remote) (subcommand-crawler-run app (string->number port) remote))
   (`("crawler" "add" ,remote ,url) (subcommand-crawler-add app remote url))
   (`("index" ,filename)
    (let ((body (call-with-input-file filename read-string)))

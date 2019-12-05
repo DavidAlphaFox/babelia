@@ -4,6 +4,7 @@
 (import (scheme base))
 (import (scheme list))
 (import (scheme generator))
+(import (fibers))
 
 (import (web request))
 (import (web client))
@@ -65,16 +66,75 @@
               (internal-error)))
     (router app request body)))
 
-(define-public (subcommand-crawler-run app port)
+(define (todo-ref transaction nstore domain)
+  (let ((urls
+         (generator-map->list
+          (lambda (x) (fash-ref x 'url))
+          (nstore-query
+           (nstore-select transaction nstore (list (nstore-var 'url)
+                                                   'domain
+                                                   domain))
+           (nstore-where transaction nstore (list (nstore-var 'url)
+                                                  'todo?
+                                                  #t))))))
+    (if (null? urls)
+        #f
+        (let ((url (car urls)))
+          (domain-touch/transaction transaction nstore (uri-domain (string->uri url)))
+          (done/transaction transaction nstore url)
+          url))))
+
+(define (crawler-todo-ref/transaction transaction nstore)
+  (let ((domains (generator-map->list
+                  (lambda (x) (cons (fash-ref x 'domain)
+                                    (fash-ref x 'timestamp)))
+                  (nstore-select transaction nstore (list (nstore-var 'domain)
+                                                          'timestamp
+                                                          (nstore-var 'timestamp))))))
+    (let loop ((domains domains)
+               (out '()))
+      (if (null? domains)
+          out
+          (if (< 1000 (- (current-milliseconds) (cdar domains)))
+              (let ((url (todo-ref transaction nstore (caar domains))))
+                (if url
+                    (loop (cdr domains) (cons url out))
+                    (loop (cdr domains) out)))
+              (begin
+                (log-debug "waiting for DOMAIN" (caar domains))
+                (loop (cdr domains) out)))))))
+
+(define (crawler-todo-ref app)
+  (engine-in-transaction (app-engine app) (app-okvs app)
+    (lambda (transaction)
+      (crawler-todo-ref/transaction transaction (app-nstore app)))))
+
+(define (crawl app url remote)
+  (add-single-page app remote (string->uri url))
+  (domain-touch app (uri-domain (string->uri url))))
+
+(define (crawler-run app remote)
+  (let loop0 ()
+    (pk 'loop0)
+    (let ((todos (crawler-todo-ref app)))
+      (let loop1 ((todos todos))
+        (unless (null? todos)
+          (spawn-fiber (lambda () (crawl app (car todos) remote)))
+          (loop1 (cdr todos)))))
+    (sleep 0.1)
+    (loop0)))
+
+(define-public (subcommand-crawler-run app port remote)
   (pool-init)
   (log-debug "running crawler server on PORT" port)
   (run-server (lambda (request body) (router/guard app request body))
-              #:port port))
+              #:port port
+              #:init (lambda () (crawler-run app remote))))
 
 ;; add url
 
 (define (head url)
-  (call-with-values (lambda () (http-get url  #:decode-body? #f #:streaming? #t))
+  (call-with-values (lambda () (http-head url))
     (lambda (response _) response)))
 
 (define (valid? url)
@@ -93,7 +153,7 @@
                   (< (cdr content-length) (* 5 1024 1024)))))))
 
 (define (get url)
-  (call-with-values (lambda () (http-get url  #:decode-body? #t #:streaming? #f))
+  (call-with-values (lambda () (http-get url))
     (lambda (_ body) body)))
 
 (define (index remote url document)
@@ -206,12 +266,12 @@
 (define (add-domain app remote domain)
   (log-info "add DOMAIN at REMOTE" `((domain . ,domain)
                                      (remote . ,remote)))
-  (domain-touch app domain)
+  (domain-touch app (uri-domain (string->uri domain)))
   (let* ((body (add-single-page app remote (string->uri domain)))
          (html (html->sxml body))
          (hrefs (extract-href html))
          (hrefs (filter unsupported-href hrefs))
-         (urls (map (lambda (href) (uri-join domain href)) hrefs)))
+         (urls (map (lambda (href) (uri-join (string->uri domain) href)) hrefs)))
     (let loop ((urls urls))
       (unless (null? urls)
         (when (string-prefix? domain (car urls))
