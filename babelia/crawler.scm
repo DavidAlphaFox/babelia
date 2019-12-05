@@ -121,27 +121,26 @@
            (string-prefix? "mailto:" href))))
 
 (define (done/transaction transaction nstore url)
-  ;; move URL to done in the todo.
   (log-debug "move URL to done" `((url . ,url)))
-  (let ((uid (generator->list
-              (nstore-select transaction nstore (list (nstore-var 'uid)
-                                                      'todo/url
-                                                      url)))))
-    (when (not (null? uid))
-      (let ((uid (fash-ref (car uid) 'uid)))
-        (nstore-delete! transaction nstore (list uid
-                                                 'todo/url
-                                                 url))
-        (nstore-delete! transaction nstore (list uid
-                                                 'todo/done
-                                                 #f))))
-    (let ((uid (ulid)))
-      (nstore-add! transaction nstore (list uid
-                                            'todo/url
-                                            url))
-      (nstore-add! transaction nstore (list uid
-                                            'todo/done
-                                            #t)))))
+  (let ((todo? (generator->list
+                  (nstore-select transaction nstore (list url
+                                                          'todo?
+                                                          (nstore-var 'todo?))))))
+    (if (null? todo?)
+        (nstore-add! transaction nstore (list url
+                                              'todo?
+                                              #f))
+        (let ((todo? (fash-ref (car todo?) 'todo?)))
+          (if todo?
+              (begin
+                (nstore-delete! transaction nstore (list url
+                                                         'todo?
+                                                         #t))
+                (nstore-add! transaction nstore (list url
+                                                      'todo?
+                                                      #f)))
+              (log-warn "URL was already done" `((url . ,url))))))))
+
 
 (define (done app url)
   (engine-in-transaction (app-engine app) (app-okvs app)
@@ -150,19 +149,21 @@
 
 (define (todo/transaction transaction nstore url)
   ;; add URL to the todo only if it is not already there.
-  (let ((todo/url (generator->list
-                   (nstore-select transaction nstore (list (nstore-var 'uid)
-                                                           'todo/url
-                                                           url)))))
-    (when (null? todo/url)
-      (let ((uid (ulid)))
-        (log-debug "adding URL to todo" `((url . ,url)))
-        (nstore-add! transaction nstore (list uid
-                                              'todo/url
-                                              url))
-        (nstore-add! transaction nstore (list uid
-                                              'todo/done
-                                              #f))))))
+  (log-debug "todo URL" `((url . ,url)))
+  (let ((todo? (generator->list
+                (nstore-select transaction nstore (list url
+                                                        'todo?
+                                                        (nstore-var 'todo?))))))
+    (if (null? todo?)
+        (nstore-add! transaction nstore (list url
+                                              'todo?
+                                              #t))
+        (let ((todo? (fash-ref (car todo?) 'todo?)))
+          (if todo?
+              (log-debug "URL was already todo" `((url . ,url)))
+              (log-debug "URL is done, do nothing"))))))
+
+
 
 (define (todo app url)
   (engine-in-transaction (app-engine app) (app-okvs app)
