@@ -155,9 +155,13 @@
                                                         'todo?
                                                         (nstore-var 'todo?))))))
     (if (null? todo?)
-        (nstore-add! transaction nstore (list url
-                                              'todo?
-                                              #t))
+        (begin
+          (nstore-add! transaction nstore (list url
+                                                'todo?
+                                                #t))
+          (nstore-add! transaction nstore (list url
+                                                'domain
+                                                (uri-domain (string->uri url)))))
         (let ((todo? (fash-ref (car todo?) 'todo?)))
           (if todo?
               (log-debug "URL was already todo" `((url . ,url)))
