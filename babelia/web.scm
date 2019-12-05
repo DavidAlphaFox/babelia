@@ -7,12 +7,17 @@
 (import (ice-9 match))
 
 (import (babelia log))
+(import (babelia app))
 (import (babelia web server))
 (import (babelia web helpers))
 (import (babelia web static))
+(import (babelia web decode))
 (import (babelia web api index))
 (import (babelia web api search))
 (import (babelia pool))
+(import (babelia okvs rstore))
+(import (babelia okvs engine))
+(import (babelia okvs fts))
 
 
 (define (template class body)
@@ -31,18 +36,40 @@
                 ,body))
       (div (@ (id "footer")))))))
 
-(define (route/index)
-  (sxml->response
-   (template "index" "Hello, world!")))
-
 (define (route/api/status)
   (scheme->response 'OK))
+
+(define (route/index/transaction transaction app query)
+  (let loop ((hits (fts-query (app-okvs app) (app-fts app) query)))
+    (map (lambda (hit) (cons (rstore-ref transaction (app-rstore app) (car hit))
+                             (cdr hit)))
+         hits)))
+
+(define (route/index/template hits)
+  (template
+   "index"
+   (map (lambda (hit) `(a (@ (href ,(document-url (car hit))))
+                          (p ,(document-title (car hit)))
+                          (p ,(document-preview (car hit)))))
+        hits)))
+
+(define (route/index app query)
+  (if (not query)
+      (sxml->response (route/index/template '()))
+      (let ((query (cadr (assoc "query" (decode query)))))
+        (log-debug "web search" query)
+        (sxml->response
+         (route/index/template (pool-apply
+                                (lambda ()
+                                  (engine-in-transaction (app-engine app) (app-okvs app)
+                                    (lambda (tx)
+                                      (route/index/transaction tx app query))))))))))
 
 (define (router app request body)
   (log-debug "new request" `((method . ,(request-method request))
                              (path . ,(uri->string (request-uri request)))))
   (match (cons (request-method request) (request-path-components request))
-    ('(GET) (route/index))
+    ('(GET) (route/index app (uri-query (request-uri request))))
     ('(GET "api" "status") (route/api/status))
     ('(POST "api" "index") (route/api/index app body))
     ('(GET "api" "search") (route/api/search app (uri-query (request-uri request))))

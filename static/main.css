@@ -255,3 +255,12 @@ span.tag {
   font-weight: 1em;
   color: black;
 }
+
+#container.index a {
+    display: block;
+    text-decoration: none;
+}
+
+#container.index a:hover {
+    text-decoration: underline;
+}

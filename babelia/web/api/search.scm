@@ -23,11 +23,5 @@
       (lambda ()
         (engine-in-transaction (app-engine app) (app-okvs app)
           (lambda (tx)
-            (let loop ((hits (fts-query (app-okvs app) (app-fts app) query))
-                       (out '()))
-              (if (null? hits)
-                  out
-                  (loop (cdr hits)
-                        (cons (cons (document-url (rstore-ref tx (app-rstore app) (caar hits)))
-                                    (cdar hits))
-                              out)))))))))))
+            (map (lambda (x) (document-url (rstore-ref tx (app-rstore app) (car x))))
+                 (fts-query (app-okvs app) (app-fts app) query)))))))))

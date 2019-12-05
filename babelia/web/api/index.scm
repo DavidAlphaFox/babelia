@@ -27,10 +27,14 @@
           (log-debug "indexing" `((url . ,url)))
           (engine-in-transaction (app-engine app) (app-okvs app)
             (lambda (transaction)
-              (call-with-values (lambda () (fts-index transaction (app-fts app) body))
+              (call-with-values (lambda () (fts-index transaction (app-fts app) html))
                 (lambda (uid title preview)
                   (rstore-update transaction
                                  (app-rstore app)
                                  uid
-                                 (make-document url title preview))))))
+                                 (make-document url title preview))
+                  (log-trace "indexed as URL, with TITLE and PREVIEW"
+                             `((url . ,url)
+                               (title . ,title)
+                               (preview . ,preview)))))))
           (lambda () (scheme->response 'OK))))))))

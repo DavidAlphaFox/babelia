@@ -56,41 +56,40 @@
 (define okvs (engine-open engine directory %config))
 (define app (make-app #f engine okvs ustore rstore nstore fts))
 
-(define (benchmark-once okvs fts query)
+(define (benchmark-once app query)
   (let* ((start (current-milliseconds)))
-    (fts-query okvs fts query)
+    (fts-query (app-okvs app) (app-fts app) query)
     (- (current-milliseconds) start)))
 
-(define (benchmark directory query)
-  (let* ((okvs (engine-open engine directory %config)))
-    ;; warm the cache
-    (fts-query okvs fts query)
-    ;; wait the cache to be setup ready
-    (sleep 2)
-    ;; benchmark
-    (let ((out (let loop ((count 0)
-                          (sum 0))
-                 (if (= count 10)
-                     (exact->inexact (/ sum 10))
-                     (loop (+ count 1) (+ sum (benchmark-once okvs fts query)))))))
-      (engine-close engine okvs)
-      out)))
+(define (benchmark app query)
+  (log-info "benchmarking" query)
+  ;; warm the cache
+  (fts-query (app-okvs app) (app-fts app) query)
+  ;; wait the cache to be setup ready
+  (sleep 2)
+  ;; benchmark
+  (let loop ((count 0)
+             (sum 0))
+    (if (= count 3)
+        (exact->inexact (/ sum 3))
+        (loop (+ count 1) (+ sum (benchmark-once app query))))))
 
 (define (print obj)
   (display obj) (newline))
 
-(define (stems-ref directory)
+(define (stems-ref)
   (reverse (fts-stem-counter okvs fts)))
 
-(define (stem-stop-guess directory min)
+(define (stem-stop-guess app min)
+  (pool-init)
   ;; TODO: speed up the search with divide-and-conquer strategy, that
   ;; is a dichotomy.
-  (let ((stems (stems-ref directory)))
+  (let ((stems (stems-ref)))
     (let loop ((stems stems)
                (out '()))
       (if (null? stems)
           (error 'babelia "oops")
-          (let ((new (benchmark directory (caar stems))))
+          (let ((new (benchmark app (caar stems))))
             (pk new)
             (if (< new min)
                 (for-each (compose print car) out)
@@ -110,7 +109,7 @@
    (for-each print (fts-word-counter okvs fts)))
   (`("stem" "counter")
    (for-each print (fts-stem-counter okvs fts)))
-  (`("stem" "stop" "guess" ,milliseconds) (stem-stop-guess directory (string->number milliseconds)))
+  (`("stem" "stop" "guess" ,milliseconds) (stem-stop-guess app (string->number milliseconds)))
   (`("stem" "stop" "show") (stem-stop-show directory))
   (`("stem" "stop" "update" ,filename) (stem-stop-update directory filename))
   ;; TODO: eventually all commands must start with a directory and ends with a rest.

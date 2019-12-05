@@ -181,7 +181,7 @@
           (string-truncate (string-single-line (car title)) 100))))
 
 (define (text-extract-preview string)
-  (string-truncate string 280))
+  (string-truncate (string-single-line string) 280))
 
 (define (valid? title preview)
   (and title
