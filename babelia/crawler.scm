@@ -174,9 +174,39 @@
     (lambda (transaction)
       (todo/transaction transaction (app-nstore app) url))))
 
+(define (current-milliseconds)
+  (let ((seconds+microseconds (gettimeofday)))
+    (+ (* (car seconds+microseconds) (expt 10 3))
+       (round (/ (cdr seconds+microseconds) (expt 10 3))))))
+
+(define (domain-touch/transaction transaction nstore domain)
+  (log-debug "touch DOMAIN" `((domain . ,domain)))
+  (let ((timestamp (generator->list
+                    (nstore-select transaction nstore (list domain
+                                                            'timestamp
+                                                            (nstore-var 'timestamp))))))
+    (if (null? timestamp)
+        (nstore-add! transaction nstore (list domain
+                                             'timestamp
+                                             (current-milliseconds)))
+        ;; else, refresh timestamp
+        (let ((timestamp (fash-ref (car timestamp) 'timestamp)))
+          (nstore-delete! transaction nstore (list domain
+                                                   'timestamp
+                                                   timestamp))
+          (nstore-add! transaction nstore (list domain
+                                               'timestamp
+                                               (current-milliseconds)))))))
+
+(define (domain-touch app domain)
+  (engine-in-transaction (app-engine app) (app-okvs app)
+    (lambda (transaction)
+      (domain-touch/transaction transaction (app-nstore app) domain))))
+
 (define (add-domain app remote domain)
   (log-info "add DOMAIN at REMOTE" `((domain . ,domain)
                                      (remote . ,remote)))
+  (domain-touch app domain)
   (let* ((body (add-single-page app remote (string->uri domain)))
          (html (html->sxml body))
          (hrefs (extract-href html))
