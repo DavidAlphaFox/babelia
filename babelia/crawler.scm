@@ -3,18 +3,27 @@
 (import (scheme assume))
 (import (scheme base))
 (import (scheme list))
+(import (scheme generator))
 
 (import (web request))
 (import (web client))
 (import (web response))
 (import (web uri))
 (import (ice-9 match))
+(import (only (sxml xpath) sxpath))
 
+(import (babelia app))
 (import (babelia pool))
 (import (babelia log))
+(import (babelia htmlprag))
+(import (babelia okvs engine))
+(import (babelia okvs nstore))
+(import (babelia okvs ulid))
 (import (babelia web server))
 (import (babelia web helpers))
 (import (babelia web static))
+
+(import (babelia crawler uri-join))
 
 
 (define (template class body)
@@ -97,15 +106,60 @@
       (assume (= (response-code response) 200)))))
 
 (define (add-single-page remote url)
+  (log-debug "add single page URL at REMOTE" `((url . ,(uri->string url))
+                                               (remote . ,remote)))
   (let ((body (get url)))
     (index remote url body)
     body))
 
-(define-public (subcommand-crawler-add remote url)
+(define extract-href (sxpath '(// a @ href *text*)))
+
+(define (unsupported-href href)
+  (not (or (string-prefix? "#" href)
+           (string-prefix? "mailto:" href))))
+
+(define (todo/transaction transaction nstore url)
+  ;; add URL to the todo only if it is not already there.
+  (let ((todo/url (generator->list
+                   (nstore-select transaction nstore (list (nstore-var 'uid)
+                                                           'todo/url
+                                                           url)))))
+    (when (null? todo/url)
+      (let ((uid (ulid)))
+        (log-debug "adding URL to todo" `((url . ,url)))
+        (nstore-add! transaction nstore (list uid
+                                              'todo/url
+                                              url))
+        (nstore-add! transaction nstore (list uid
+                                              'todo/done
+                                              #f))))))
+
+
+(define (todo app url)
+  (engine-in-transaction (app-engine app) (app-okvs app)
+    (lambda (transaction)
+      (todo/transaction transaction (app-nstore app) url))))
+
+(define (add-domain app remote domain)
+  (log-info "add DOMAIN at REMOTE" `((domain . ,domain)
+                                     (remote . ,remote)))
+  (let* ((body (add-single-page remote (string->uri domain)))
+         (html (html->sxml body))
+         (hrefs (extract-href html))
+         (hrefs (filter unsupported-href hrefs))
+         (urls (map (lambda (href) (uri-join domain href)) hrefs)))
+    (let loop ((urls urls))
+      (unless (null? urls)
+        (when (string-prefix? domain (car urls))
+          (todo app (car urls)))
+        (loop (cdr urls))))))
+
+(define-public (subcommand-crawler-add app remote url)
+  (log-debug "subcommand-crawler-add")
   (if (not (valid? url))
       (log-error "This is not a valid URL...")
       (let ((url (string->uri url)))
         (if (or (string=? (uri-path url) "/")
                 (string-null? (uri-path url)))
-            (add-single-page remote url)
-            (add-domain remote url)))))
+            (add-domain app remote (uri->string url))
+            (add-single-page remote url)))))
