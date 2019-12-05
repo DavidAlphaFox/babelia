@@ -5,11 +5,15 @@
 
 
 (define-public (uri-domain uri)
-  (string-append (symbol->string (uri-scheme uri))
-                 "://"
-                 (uri-host uri)
-                 ":"
-                 (number->string (uri-port uri))))
+  (if (uri-port uri)
+      (string-append (symbol->string (uri-scheme uri))
+                     "://"
+                     (uri-host uri)
+                     ":"
+                     (number->string (uri-port uri)))
+      (string-append (symbol->string (uri-scheme uri))
+                     "://"
+                     (uri-host uri))))
 
 (define (uri-canonical-path url)
   (let ((path* (string-split (uri-path (string->uri url)) #\/)))
