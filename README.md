@@ -14,6 +14,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - guile-bytestructures 1.0.6
 - guile-gcrypt 0.2.0
 - guile-gnutls 3.6.9
+- guile-arew
 - wiredtiger 3.2.0
 - stemmer 0.0.0
 
@@ -108,19 +109,19 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] use nstore in separate directory
   - [x] babelia crawler run: same command but another processus.
   - [x] fiber main thread + workers
-  - [ ] babelia crawler add REMOTE URL:
-    - [ ] if has a path, if it is html and utf8 and not a redirection,
+  - [x] babelia crawler add REMOTE URL:
+    - [x] if has a path, if it is html and utf8 and not a redirection,
           index only the given URL
-    - [ ] otherwise, it is a domain:
-      - [ ] check that it is not a redirection,
-      - [ ] check that it is html and utf8,
-      - [ ] add linked pages to todo,
-      - [ ] index the given page,
-      - [ ] extract links and add to todo with domain,
-  - [ ] keep track of what is done and what is todo,
-  - [ ] add to the todo only if is html and utf8,
-- [ ] web: input query
-- [ ] web: display results
+    - [x] otherwise, it is a domain:
+      - [x] check that it is not a redirection,
+      - [x] check that it is html and utf8,
+      - [x] add linked pages to todo,
+      - [x] index the given page,
+      - [x] extract links and add to todo with domain,
+  - [x] keep track of what is done and what is todo,
+  - [x] add to the todo only if is html and utf8,
+- [x] web: input query
+- [x] web: display results
 
 ## v0.3.0
 
