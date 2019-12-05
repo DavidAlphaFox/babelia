@@ -2,8 +2,10 @@
 
 (import (scheme time))
 (import (babelia colorizer))
+(import (ice-9 threads))
 
 
+(define mutex (make-mutex))
 
 (define %active? #f)
 
@@ -20,24 +22,26 @@
   (case-lambda
     ((msg args)
      (when %active?
-       (let ((port (current-error-port)))
-         (display (current-jiffy) port)
-         (display " - " port)
-         (display (colorizer color level) port)
-         (display " - " port)
-         (display (colorizer color msg) port)
-         (display " - " port)
-         (display args port)
-         (newline port))))
+       (with-mutex mutex
+         (let ((port (current-error-port)))
+           (display (current-jiffy) port)
+           (display " - " port)
+           (display (colorizer color level) port)
+           (display " - " port)
+           (display (colorizer color msg) port)
+           (display " - " port)
+           (display args port)
+           (newline port)))))
     ((msg)
      (when %active?
-       (let ((port (current-error-port)))
-         (display (current-jiffy) port)
-         (display " - " port)
-         (display (colorizer color level) port)
-         (display " - " port)
-         (display (colorizer color msg) port)
-         (newline port))))))
+       (with-mutex mutex
+         (let ((port (current-error-port)))
+           (display (current-jiffy) port)
+           (display " - " port)
+           (display (colorizer color level) port)
+           (display " - " port)
+           (display (colorizer color msg) port)
+           (newline port)))))))
 
 (define-public log-trace (make-log "trace" 'GREEN))
 (define-public log-debug (make-log "debug" 'BLUE))
