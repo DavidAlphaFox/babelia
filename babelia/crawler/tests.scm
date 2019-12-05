@@ -3,6 +3,7 @@
 
 (import (babelia testing))
 (import (babelia crawler robots))
+(import (babelia crawler uri-join))
 
 
 (define-public test-000
@@ -88,3 +89,50 @@ disallow: /cgi/*/script
 (define-public test-012
   (test #t
         (robots.txt-allow? robots.txt2 "/cgi")))
+
+;; tests uri-join
+
+(define-public test-013
+  (test "https://hyper.dev/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing"
+                  "/foobar")))
+
+(define-public test-014
+  (test "https://hyper.dev/path/to/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing"
+                  "../foobar")))
+
+(define-public test-015
+  (test "https://hyper.dev/path/to/some/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing"
+                  "./foobar")))
+
+(define-public test-016
+  (test "https://hyper.dev/path/to/some/thing/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "./foobar")))
+
+(define-public test-017
+  (test "https://hyper.dev/path/to/some/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "../foobar")))
+
+(define-public test-018
+  (test "https://hyper.dev/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "/../foobar")))
+
+(define-public test-019
+  (test "https://hyper.dev/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "/../foobar")))
+
+(define-public test-020
+  (test "https://hyper.dev/foobar"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "/./foobar")))
+
+(define-public test-021
+  (test "https://hyper.dev/path/to/some/thing/foobar/"
+        (uri-join "https://hyper.dev/path/to/some/thing/"
+                  "./foobar/")))
