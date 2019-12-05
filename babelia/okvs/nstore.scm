@@ -279,10 +279,12 @@
   ;; for the range query done later.
   (let loop ((index index)
              (out '()))
-    (let ((v (list-ref pattern (car index))))
-      (if (nstore-var? v)
-          (reverse out)
-          (loop (cdr index) (cons v out))))))
+    (if (null? index)
+        (reverse out)
+        (let ((v (list-ref pattern (car index))))
+          (if (nstore-var? v)
+              (reverse out)
+              (loop (cdr index) (cons v out)))))))
 
 (define (%from transaction nstore pattern seed config)
   (call-with-values (lambda () (pattern->index pattern (nstore-indices nstore)))
