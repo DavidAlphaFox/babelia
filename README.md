@@ -15,7 +15,7 @@ spaceship](https://cdn.dribbble.com/users/2441249/screenshots/4890251/babeldrbl.
 - guile-gcrypt 0.2.0
 - guile-gnutls 3.6.9
 - guile-arew
-- wiredtiger 3.2.0
+- wiredtiger 3.2.0-0
 - stemmer 0.0.0
 
 See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
