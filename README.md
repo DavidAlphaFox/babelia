@@ -102,10 +102,10 @@ See [my guix channel](https://git.sr.ht/~amz3/guix-amz3-channel).
   - [x] create small preview: max 280 chars
 - [x] babelia web /api/index
 - [x] babelia web /api/search
-- [ ] crawler:
-  - [x] (make-robots.txt user-agent string)
-  - [x] (robots.txt-delay robots.txt path) => #f or seconds,
-  - [x] (robots.txt-allow? robots.txt path) => #f or #t,
+- [x] crawler:
+  - [x] make-robots.txt user-agent string
+  - [x] robots.txt-delay robots.txt path => #f or seconds,
+  - [x] robots.txt-allow? robots.txt path => #f or #t,
   - [x] use nstore in separate directory
   - [x] babelia crawler run: same command but another processus.
   - [x] fiber main thread + workers
