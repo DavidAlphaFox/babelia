@@ -6,9 +6,11 @@
 (define-module (babelia pool))
 
 (import (ice-9 match))
+(import (ice-9 q))
 (import (ice-9 threads))
 (import (srfi srfi-9))
 (import (srfi srfi-1))
+(import (fibers))
 (import (fibers channels))
 (import (fibers operations))
 (import (babelia thread))
@@ -22,14 +24,37 @@
 
 (define (worker channel)
   (parameterize ((thread-index (random-bytes 2)))
+    (let ((worker (make-channel)))
+      (let loop ()
+        (put-message channel (cons 'worker worker))
+        (let* ((work (get-message worker))
+               (thunk (car work))
+               (return (cdr work))
+               ;; Execute thunk and send the returned value.  XXX: To be able
+               ;; to keep track of jobs, the channel called `return`, is put
+               ;; in itself.  See procedure pool-for-each-par-map.
+
+               ;; TODO: add a call-with-values
+               (out (thunk)))
+          (put-message return (cons return out)))
+        (loop)))))
+
+(define (arbiter channel)
+  (let ((works (make-q))
+        (workers (make-q)))
     (let loop ((message (get-message channel)))
-      (let ((thunk (car message))
-            (return (cdr message)))
-        ;; Execute thunk and send the returned value.  XXX: To be able
-        ;; to keep track of jobs, the channel called `return`, is put
-        ;; in itself.  See procedure pool-for-each-par-map.
-        (let ((out (thunk)))
-          (put-message return (cons return out))))
+      (match message
+        (('worker . worker)
+         (if (q-empty? works)
+             (enq! workers worker)
+             (let ((work (deq! works)))
+               (put-message worker work))))
+        (('work . work)
+         (if (q-empty? workers)
+             (enq! works work)
+             (let ((worker (deq! workers)))
+               (put-message worker work))))
+        (_ (raise (cons 'fuu message))))
       (loop (get-message channel)))))
 
 (define-public (pool-init)
@@ -37,15 +62,16 @@
       (error 'babelia "pool can not be initialized more than once")
       (let ((channel (make-channel)))
         (log-debug "pool init")
+        (set! %channel channel)
         (let loop ((index worker-count))
           (unless (zero? index)
             (call-with-new-thread (lambda () (worker channel)))
             (loop (- index 1))))
-        (set! %channel channel))))
+        (arbiter channel))))
 
 (define (publish thunk)
   (let ((return (make-channel)))
-    (put-message %channel (cons thunk return))
+    (put-message %channel (cons 'work (cons thunk return)))
     return))
 
 (define-public (pool-apply thunk)
@@ -55,19 +81,9 @@
   (cdr (get-message (publish thunk))))
 
 (define (select channels)
+  (log-trace "select")
   (perform-operation
    (apply choice-operation (map get-operation channels))))
-
-(define (maybe-take lst count)
-  (if (< (length lst) count)
-      lst
-      (take lst count)))
-
-(define (maybe-drop lst count)
-  (if (< (length lst) count)
-      '()
-      (drop lst count)))
-
 
 ;; TODO: Maybe add a timeout argument, in order to be able to display
 ;; a nicer error.
@@ -84,14 +100,10 @@
    But applications of PPROC happens in parallel and waiting for new
    values is not blocking the main thread."
   (let loop ((channels (map (lambda (item) (publish (lambda () (pproc item))))
-                            (maybe-take lst (- worker-count 1))))
-             (others (maybe-drop lst (- worker-count 1))))
-    (unless (and (null? channels) (null? others))
+                            lst)))
+    (unless (null? channels)
       (match (select channels)
         ((channel . value)
          (sproc value)
-         (if (null? others)
-             (loop (remove (lambda (x) (eq? x channel)) channels) '())
-             (loop (cons (publish (lambda() (pproc (car others))))
-                         (remove (lambda (x) (eq? x channel)) channels))
-                   (cdr others))))))))
+         (loop (remove (lambda (x) (eq? x channel)) channels)))
+        (else (raise 'fuuubar))))))

@@ -83,6 +83,6 @@
     (router app request body)))
 
 (define-public (subcommand-web-run app)
-  (pool-init)
   (log-info "web server starting at port 8080...")
-  (run-server (lambda (request body) (router/guard app request body))))
+  (run-server (lambda (request body) (router/guard app request body))
+              #:init pool-init))
