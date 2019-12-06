@@ -18,6 +18,8 @@
 
 (define %channel #f)
 
+(define worker-count (- (current-processor-count) 1))
+
 (define (worker channel)
   (parameterize ((thread-index (random-bytes 2)))
     (let loop ((message (get-message channel)))
@@ -35,7 +37,7 @@
       (error 'babelia "pool can not be initialized more than once")
       (let ((channel (make-channel)))
         (log-debug "pool init")
-        (let loop ((index (- (current-processor-count) 1)))
+        (let loop ((index worker-count))
           (unless (zero? index)
             (call-with-new-thread (lambda () (worker channel)))
             (loop (- index 1))))
@@ -56,6 +58,17 @@
   (perform-operation
    (apply choice-operation (map get-operation channels))))
 
+(define (maybe-take lst count)
+  (if (< (length lst) count)
+      lst
+      (take lst count)))
+
+(define (maybe-drop lst count)
+  (if (< (length lst) count)
+      '()
+      (drop lst count)))
+
+
 ;; TODO: Maybe add a timeout argument, in order to be able to display
 ;; a nicer error.
 (define-public (pool-for-each-par-map sproc pproc lst)
@@ -70,9 +83,15 @@
 
    But applications of PPROC happens in parallel and waiting for new
    values is not blocking the main thread."
-  (let loop ((channels (map (lambda (item) (publish (lambda () (pproc item)))) lst)))
-    (unless (null? channels)
+  (let loop ((channels (map (lambda (item) (publish (lambda () (pproc item))))
+                            (maybe-take lst (- worker-count 1))))
+             (others (maybe-drop lst (- worker-count 1))))
+    (unless (and (null? channels) (null? others))
       (match (select channels)
         ((channel . value)
          (sproc value)
-         (loop (remove (lambda (x) (eq? x channel)) channels)))))))
+         (if (null? others)
+             (loop (remove (lambda (x) (eq? x channel)) channels) '())
+             (loop (cons (publish (lambda() (pproc (car others))))
+                         (remove (lambda (x) (eq? x channel)) channels))
+                   (cdr others))))))))
