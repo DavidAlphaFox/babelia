@@ -81,7 +81,6 @@
   (cdr (get-message (publish thunk))))
 
 (define (select channels)
-  (log-trace "select")
   (perform-operation
    (apply choice-operation (map get-operation channels))))
 
