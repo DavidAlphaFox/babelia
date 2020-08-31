@@ -11,6 +11,7 @@
 (import (web response))
 (import (web uri))
 (import (ice-9 match))
+(import (ice-9 iconv))
 (import (only (sxml xpath) sxpath))
 
 (import (babelia fash))
@@ -115,7 +116,6 @@
 
 (define (crawler-run app remote)
   (let loop0 ()
-    (pk 'loop0)
     (let ((todos (crawler-todo-ref app)))
       (let loop1 ((todos todos))
         (unless (null? todos)
@@ -125,7 +125,6 @@
     (loop0)))
 
 (define-public (subcommand-crawler-run app port remote)
-  (pool-init)
   (log-debug "running crawler server on PORT" port)
   (run-server (lambda (request body) (router/guard app request body))
               #:port port
@@ -139,22 +138,14 @@
 
 (define (valid? url)
   (let ((response (head url)))
-    (and (= (response-code response) 200)
-         ;; somekind of html content
-         (and=> (assq 'content-type (response-headers response))
-                (lambda (content-type)
-                  (any (lambda (item)
-                         (let ((item (if (symbol? item) (symbol->string item) item)))
-                           (string-contains item "text/html")))
-                       (cdr content-type))))
-         ;; at most 5MB
-         (and=> (assq 'content-length (response-headers response))
-                (lambda (content-length)
-                  (< (cdr content-length) (* 5 1024 1024)))))))
+    (= (response-code response)) 200))
 
 (define (get url)
-  (call-with-values (lambda () (http-get url))
-    (lambda (_ body) body)))
+  (call-with-values (lambda () (http-get url #:decode-body? #f))
+    (lambda (_ body) (decode body))))
+
+(define (decode bytevector)
+  (bytevector->string bytevector "UTF-8" 'substitute))
 
 (define (index remote url document)
   (call-with-values (lambda ()

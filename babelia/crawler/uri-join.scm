@@ -46,7 +46,7 @@
                        ((string-prefix? "http" href) href)
                        ;; same protocol url, prefix the correct protocol
                        ((string-prefix? "//" href)
-                        (if (string-prefix? "http://" url)
+                        (if (eq? 'http (uri-scheme url))
                             (string-append "http:" href)
                             (string-append "https:" href)))
                        ;; HREF is absolute, suffix domain from URL with HREF

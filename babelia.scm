@@ -104,7 +104,7 @@
 
 (match (cddr (program-arguments))
   (`("benchmark" . ,keywords)
-   (pk "average in milliseconds" (benchmark directory (string-join keywords " "))))
+   (pk "average in milliseconds" (benchmark app (string-join keywords " "))))
   (`("word" "counter")
    (for-each print (fts-word-counter okvs fts)))
   (`("stem" "counter")

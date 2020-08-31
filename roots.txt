@@ -1,53 +1,36 @@
-http://dynamo.iro.umontreal.ca/
-http://git.savannah.gnu.org/cgit/guile.git/tree/
-http://git.savannah.gnu.org/cgit/guix.git/tree/
-http://ikarus-scheme.org/
-http://justinethier.github.io/cyclone/
-http://larcenists.org/
-http://lists.nongnu.org/archive/html/chicken-announce/
-http://lists.nongnu.org/archive/html/chicken-hackers/
-http://lists.nongnu.org/archive/html/chicken-users/
-http://r7rs.org/
-http://sarabander.github.io/sicp/
-http://snow-fort.org/
-http://sph.mn/
-http://synthcode.com/scheme/chibi/
-http://www.littlewingpinball.com/doc/en/ypsilon/
-http://www.r6rs.org/
-http://www.s48.org/
-http://www.scheme-reports.org/
-http://www.scheme.dk/planet/
-https://akkuscm.org/
-https://api.call-cc.org/4/doc/
-https://bitbucket.org/cowan/r7rs-wg1-infra/
-https://bugs.call-cc.org/
-https://call-cc.org/
-https://cisco.github.io/ChezScheme/
-https://cons.io/
-https://docs.racket-lang.org/
-https://ecraven.github.io/r7rs-benchmarks/
-https://ecraven.github.io/r7rs-coverage/
-https://eggs.call-cc.org/
-https://htdp.org/
-https://lists.gnu.org/archive/html/guile-devel/
-https://lists.gnu.org/archive/html/guile-user/
-https://lists.gnu.org/archive/html/guix-devel/
-https://lists.gnu.org/archive/html/help-guix/
-https://lists.gnu.org/archive/html/mit-scheme-users/
-https://lists.gnu.org/archive/html/bug-guix/
-https://lists.gnu.org/archive/html/bug-guile/
-https://pkgs.racket-lang.org/
-https://practical-scheme.net/
-https://racket-lang.org/
-https://schemers.org/
-https://scsh.net/
-https://small.r7rs.org/
-https://srfi.schemers.org/
-https://wiki.call-cc.org/
-https://wiki.call-cc.org/discussion-groups/
-https://www-sop.inria.fr/mimosa/fp/Bigloo/
-https://www.gnu.org/software/guile
-https://www.gnu.org/software/guix
-https://www.gnu.org/software/kawa/
-https://www.gnu.org/software/mit-scheme/
-https://www.scheme.com/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://dynamo.iro.umontreal.ca/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://git.savannah.gnu.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://ikarus-scheme.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://justinethier.github.io/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://larcenists.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://lists.nongnu.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://r7rs.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://snow-fort.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://sph.mn/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://synthcode.com/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://www.littlewingpinball.com/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://www.r6rs.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://www.s48.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://www.scheme-reports.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 http://www.scheme.dk/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://akkuscm.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://api.call-cc.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://bugs.call-cc.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://call-cc.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://scheme.com
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://cons.io/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://docs.racket-lang.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://ecraven.github.io/r7rs-benchmarks/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://ecraven.github.io/r7rs-coverage/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://eggs.call-cc.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://htdp.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://lists.gnu.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://pkgs.racket-lang.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://practical-scheme.net/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://racket-lang.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://schemers.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://scsh.net/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://small.r7rs.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://srfi.schemers.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://wiki.call-cc.org/
+guile -L . babelia.scm crawler crawler add http://localhost:8080 https://www.gnu.org/

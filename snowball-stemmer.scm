@@ -1,3 +1,4 @@
+;; guile-snowball-stemmer
 ;; Copyright (C) 2019 Amirouche Boubekki <amirouche@hyper.dev>
 
 ;; This library is free software; you can redistribute it and/or
@@ -13,7 +14,7 @@
 ;; You should have received a copy of the GNU Lesser General Public License
 ;; along with this library; if not, write to the Free Software Foundation,
 ;; Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-(define-module (babelia stemmer))
+(define-module (snowball-stemmer))
 
 (import (system foreign))
 (import (only (rnrs bytevectors)
@@ -60,7 +61,6 @@
 
 (define stemmers-guardian (make-guardian))
 
-;; TODO: return a stem procedure
 (define make-stemmer
   (let ((proc (snowball-stemmer POINTER "sb_stemmer_new" POINTER POINTER)))
     (lambda (algorithm)
@@ -85,8 +85,8 @@
       (proc stemmer))))
 
 (define stem
-  (lambda (stemmer word)
-    (let ((proc (snowball-stemmer POINTER "sb_stemmer_stem" POINTER POINTER int)))
+  (let ((proc (snowball-stemmer POINTER "sb_stemmer_stem" POINTER POINTER int)))
+    (lambda (stemmer word)
       (let ((bv (string->utf8 word)))
         (let ((pointer (proc stemmer (bytevector->pointer bv) (bytevector-length bv))))
           (utf8->string (pointer->bytevector pointer (%stemmer-length stemmer))))))))

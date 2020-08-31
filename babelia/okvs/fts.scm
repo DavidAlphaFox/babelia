@@ -184,10 +184,7 @@
   (string-truncate (string-single-line string) 280))
 
 (define (valid? title preview)
-  (and title
-       preview
-       (>= (string-length title) 3)
-       (>= (string-length preview) 280)))
+  #t)
 
 (define-public (fts-index transaction fts html)
   "Index TEXT string with UID as an identifier."
