@@ -21,6 +21,7 @@
           untangle-time)
 
   (import (only (chezscheme)
+                box unbox box-cas!
                 make-mutex with-mutex
                 current-time make-time add-duration time<=?
                 make-condition condition-wait condition-signal)
@@ -28,6 +29,41 @@
           (srfi srfi-145)
           (arew entangle)
           (arew socket))
+
+  ;; box helpers that use box-cas!
+
+  (define (box-cons! box item)
+    ;; Add ITEM to the front of the list that is in BOX
+    (unless (box-cas! box lst (cons item (unbox box)))
+      (box-cons! box item)))
+
+  (define (box-append! box lst)
+    ;; Add LST to the front of the list that is in BOX
+
+    ;; TODO: Benchmark against an implementation that rely on
+    ;; box-cons!
+    (define old (unbox box))
+    (unless (box-cas! box box (append lst old))
+      (box-append! box lst)))
+
+  (define (box-uncons! box default)
+    ;; Remove the first item from the front of the list that is in BOX
+    ;; and return it. If the list is empty, return DEFAULT.
+    (define lst (unbox box))
+    (if (null? lst)
+        default
+        (let ((item (car lst))
+              (tail (cdr lst)))
+          (if (box-cas! box lst tail)
+              item
+              (box-uncons! box default)))))
+
+  (define (unbox-and-swap box new)
+    ;; Retrieve the value in the BOX and replace it with NEW.
+    (define old (unbox box))
+    (if (box-cas! box old new)
+        old
+        (unbox-and-swap box new)))
 
   ;;
   ;; XXX: Inside call/ec, escapade-singleton allows to tell
@@ -90,27 +126,33 @@
        (escapade escapade-singleton proc k))))
 
   (define-record-type <untangle>
-    (make-untangle% status escape time mutex queue entangle)
+    (make-untangle% status escape time queue entangle)
     untangle?
     (status untangle-status untangle-status!)
     (escape untangle-escapade untangle-escapade!)
     (time untangle-time untangle-time!)
-    (mutex untangle-mutex untangle-mutex!)
     (queue untangle-queue untangle-queue!)
     (entangle untangle-entangle))
 
   (define untangled? (make-parameter #f))
 
   (define (make-untangle)
-    (make-untangle% 'init (make-mutex) #f 0 '() (make-entangle)))
+    (make-untangle% 'init
+                    #f
+                    0
+                    (box '())
+                    (make-entangle)))
 
   (define (untangle-spawn untangle thunk)
-    ;; TODO: use box-cas!
-    (with-mutex (untangle-mutex untangle)
-      (untangle-queue! untangle
-                       (cons (cons (untangle-time untangle)
-                                   thunk)
-                             (untangle-queue untangle)))))
+    ;; THUNK will be executed at the next tick. See
+    ;; untangle-exec-expired-continuations.
+    (define when (untangle-time untangle))
+    ;; Since there is no fast lock-free or thread-safe priority queue,
+    ;; then the code rely on a list of pairs. At least, with Babelia,
+    ;; the lock-free or thread-safe priority queue, MIGHT NOT be worth
+    ;; the effort.
+    (define item (cons when thunk))
+    (box-cons! (untangle-queue untangle) item))
 
   (define (untangle-stop untangle)
     (untangle-status! untangle 'stopping))
@@ -128,6 +170,8 @@
     (untangled? #f))
 
   (define (untangle-busy? untangle)
+    ;; TODO: rename to untangle-continue? and include the check on
+    ;; status.
     (raise 'not-implemented))
 
   (define (untangle-tick untangle)
@@ -136,34 +180,29 @@
     (untangle-exec-network-continuations untangle))
 
   (define (untangle-sleep untangle nanoseconds seconds)
-    (define delta (make-time 'time-duration nanoseconds seconds))
-    (define when (add-duration (untangle-time untangle) delta))
 
-    (define (handler resume)
+    (define (on-sleep resume)
       ;; RESUME is untangle-sleep continuation.
-      ;; TODO: use box-cas!
-      (with-mutex (untangle-mutex untangle)
-        (untangle-queue! untangle (cons (cons when resume)
-                                        (untangle-queue untangle)))))
+      (define delta (make-time 'time-duration nanoseconds seconds))
+      (define when (add-duration (untangle-time untangle) delta))
+      (define item (list (cons when resume)))
+      (box-cons! (untangle-queue untangle) item))
 
     ;; untangle-sleep is necessarily called while untangle is running,
     ;; where untangled? returns #t, otherwise user code need to call
     ;; POSIX sleep.
     (assume (untangled?))
-    (escape untangle handler))
+    (escape untangle on-sleep))
 
   (define (untangle-exec-expired-continuations untangle)
-    (define time (untangle-time untangle))
 
     (define (queue-snapshot-and-nullify)
-      ;; TODO: use box-cas!
-      (with-mutex (untangle-mutex untangle)
-        (let ((queue (untangle-queue untangle)))
-          (untangle-queue! untangle '())
-          queue)))
+      (unbox-and-swap (untangle-queue untangle) '()))
+
+    (define time (untangle-time untangle))
 
     (define (call-or-keep time+thunk)
-      (if (time<=? (car time) time)
+      (if (time<=? (car time+thunk) time)
           ;; A green thread wants to wake up!
           (begin
             ;; Call the registred thunk
@@ -186,11 +225,7 @@
     (define waiting (queue-snapshot-and-nullify))
     (define pending (filter-map call-or-keep waiting))
 
-    ;; TODO: use box-cas!
-    (with-mutex (untangle-mutex untangle)
-      (let ((queue (untangle-queue untangle)))
-        (untangle-queue! untangle
-                         (append pending (untangle-queue queue))))))
+    (box-append! (untangle-queue untangle) pending))
 
   (define (untangle-exec-network-continuations untangle)
     (entangle-continue (untangle-entangle untangle)))
