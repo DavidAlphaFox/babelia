@@ -30,14 +30,14 @@
           (arew socket))
 
   ;;
-  ;; XXX: Inside untangle-call/ec, escapade-singleton allows to tell
-  ;; how untangle-call/ec thunk continuation is called:
+  ;; XXX: Inside call/ec, escapade-singleton allows to tell
+  ;; how call/ec thunk continuation is called:
   ;;
   ;; - nominal case: thunk returned.
   ;;
   ;; - thunk called untangle-escapade, in that case escapade-singleton
   ;; is the first argument of the continuation of thunk inside
-  ;; untangle-call/ec.
+  ;; call/ec.
   ;;
   ;; escapade-singleton is a singleton, user code can not create it.
   ;;
@@ -45,7 +45,7 @@
   (define escapade-singleton '(escapade-singleton))
 
   ;; call/ec = call-with-escape-continuation
-  (define (untangle-call/ec untangle thunk)
+  (define (call/ec untangle thunk)
     (call-with-values (lambda ()
                         (call/1cc
                          (lambda (k)
@@ -57,7 +57,7 @@
         ;; args may be the empty list if thunk returns nothing.
         (if (and (pair? args) (eq? (car args) escapade-singleton))
             ;; XXX: escapade handler! That is always a proc and a
-            ;; continuation, because of untangle-escape.
+            ;; continuation, because of escape.
             (let ((proc (cadr args))
                   (k (caddr args)))
               ;; call the procedure proc passed to untangle-escapade
@@ -67,7 +67,7 @@
               (proc k))
             (apply values args)))))
 
-  (define (untangle-escape untangle proc)
+  (define (escape untangle proc)
     ;; XXX: Capture the continuation and call it later, that is why it
     ;; is a call/cc and not call/1cc.
     (call/cc
@@ -78,12 +78,12 @@
        ;; it around, and it might lead to strange bugs.
        (untangle-escapade! untangle #f)
        ;; XXX: escapade is the continuation of thunk inside
-       ;; untangle-call/ec whereas k is the continuation of the caller
+       ;; call/ec whereas k is the continuation of the caller
        ;; of untangle-escapade, inside thunk.
 
        ;; XXX: Continue with thunk's continuation inside
-       ;; untangle-call/ec as known as escapade. Inside
-       ;; untangle-call/ec, proc and k are used to build the escape
+       ;; call/ec as known as escapade. Inside
+       ;; call/ec, proc and k are used to build the escape
        ;; handler.
        (escapade escapade-singleton proc k))))
 
@@ -148,7 +148,7 @@
     ;; where untangled? returns #t, otherwise user code need to call
     ;; POSIX sleep.
     (assume (untangled?))
-    (untangle-escape untangle handler))
+    (escape untangle handler))
 
   (define (untangle-exec-expired-continuation untangle)
     (define time (untangle-time untangle))
@@ -275,7 +275,7 @@
       ;; subscribe! is the escape handler, it is passed the
       ;; continuation of subscribe-and-pause! which eventually produce
       ;; the return value of untangle-channel-recv.
-      (untangle-escape untangle subscribe!))
+      (escape untangle subscribe!))
 
     (define obj (inbox-pop!))
 
@@ -381,7 +381,7 @@
                 channels))
 
     (define (subscribe-and-pause!)
-      (untangle-escape untangle subscribe!))
+      (escape untangle subscribe!))
 
     (call-with-values inboxes-pop!
       (lambda (channel obj)
