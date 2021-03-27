@@ -311,7 +311,7 @@
     (lambda ()
       (if (null? lst)
           (eof-object)
-          (let ((head (lst)))
+          (let ((head (car lst)))
             (set! lst (cdr lst))
             head))))
 
