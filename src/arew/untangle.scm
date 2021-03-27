@@ -49,42 +49,44 @@
     (call-with-values (lambda ()
                         (call/1cc
                          (lambda (k)
-                           ;; K will allow to abort THUNK.
+                           ;; K will allow to escape THUNK.
                            (assume (not (untangle-escapade untangle)))
                            (untangle-escapade! untangle k)
                            (thunk))))
       (lambda args
-        ;; args may be the empty list if thunk returns nothing.
+        ;; args may be the empty list if THUNK returns nothing.
         (if (and (pair? args) (eq? (car args) escapade-singleton))
-            ;; XXX: escapade handler! That is always a proc and a
-            ;; continuation, because of escape.
+            ;; XXX: The following code is the escapade handler! That
+            ;; is always a proc and a continuation, because of how
+            ;; escape is implemented. Racket call/ec has an optional
+            ;; argument called handler that allows to change that
+            ;; behavior.
             (let ((proc (cadr args))
                   (k (caddr args)))
               ;; call the procedure proc passed to untangle-escapade
               ;; with its continuation called k. That is, k, is what
-              ;; follow untangle-escapade call inside THUNK. K will
-              ;; allow to resume THUNK.
+              ;; follow escapade call inside THUNK. K will allow to
+              ;; resume THUNK.
               (proc k))
             (apply values args)))))
 
   (define (escape untangle proc)
     ;; XXX: Capture the continuation and call it later, that is why it
-    ;; is a call/cc and not call/1cc.
+    ;; use call/cc instead of call/1cc.
     (call/cc
      (lambda (k)
        ;; save escapade
        (define escapade (untangle-escapade untangle))
-       ;; The escapade is a call/1cc continuation, no need to keep
-       ;; it around, and it might lead to strange bugs.
+       ;; The escapade is a call/1cc continuation, no need to keep it
+       ;; around, and it might lead to strange bugs.
        (untangle-escapade! untangle #f)
-       ;; XXX: escapade is the continuation of thunk inside
-       ;; call/ec whereas k is the continuation of the caller
-       ;; of untangle-escapade, inside thunk.
+       ;; XXX: escapade is the continuation of a thunk inside call/ec
+       ;; whereas k is the continuation of the caller of escape inside
+       ;; thunk.
 
-       ;; XXX: Continue with thunk's continuation inside
-       ;; call/ec as known as escapade. Inside
-       ;; call/ec, proc and k are used to build the escape
-       ;; handler.
+       ;; XXX: Continue with thunk's continuation inside call/ec as
+       ;; known as escapade. Inside call/ec, proc and k are used to
+       ;; build the escape handler.
        (escapade escapade-singleton proc k))))
 
   (define-record-type <untangle>
@@ -130,8 +132,8 @@
 
   (define (untangle-tick untangle)
     (untangle-time! untangle (current-time 'time-monotonic))
-    (untangle-exec-expired-continuation untangle)
-    (untangle-exec-network-continuation untangle))
+    (untangle-exec-expired-continuations untangle)
+    (untangle-exec-network-continuations untangle))
 
   (define (untangle-sleep untangle nanoseconds seconds)
     (define delta (make-time 'time-duration nanoseconds seconds))
@@ -150,7 +152,7 @@
     (assume (untangled?))
     (escape untangle handler))
 
-  (define (untangle-exec-expired-continuation untangle)
+  (define (untangle-exec-expired-continuations untangle)
     (define time (untangle-time untangle))
 
     (define (queue-snapshot-and-nullify)
@@ -190,7 +192,7 @@
         (untangle-queue! untangle
                          (append pending (untangle-queue queue))))))
 
-  (define (untangle-exec-network-continuation untangle)
+  (define (untangle-exec-network-continuations untangle)
     (entangle-continue (untangle-entangle untangle)))
 
   ;; channel
@@ -272,9 +274,9 @@
                                     (channel-subscribers channel)))))
 
     (define (subscribe-and-pause!)
-      ;; subscribe! is the escape handler, it is passed the
-      ;; continuation of subscribe-and-pause! which eventually produce
-      ;; the return value of untangle-channel-recv.
+      ;; subscribe! will be used in the escape handler, it is passed
+      ;; the continuation of subscribe-and-pause! which eventually
+      ;; produce the return value of untangle-channel-recv.
       (escape untangle subscribe!))
 
     (define obj (inbox-pop!))
