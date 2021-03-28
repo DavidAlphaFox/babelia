@@ -27,6 +27,7 @@
                 make-condition condition-wait condition-signal)
           (scheme base)
           (srfi srfi-145)
+          (arew cffi)
           (arew entangle)
           (arew socket))
 
@@ -81,7 +82,8 @@
 
   (define escapade-singleton '(escapade-singleton))
 
-  ;; call/ec = call-with-escape-continuation
+  ;; TODO: rename call/pause and rename escape to pause.
+
   (define (call/ec untangle thunk)
     (call-with-values (lambda ()
                         (call/1cc
@@ -248,7 +250,7 @@
     (box-adjoin! (untangle-queue untangle) pending))
 
   (define (untangle-exec-network-continuations untangle)
-    (entangle-continue (untangle-entangle untangle)))
+    (entangle-continue (untangle-entangle untangle XXX)))
 
   ;; channel
 
@@ -568,4 +570,164 @@
         (with-mutex mutex
           (condition-wait condition
                           mutex)
-          (apply values out)))))
+          (apply values out))))
+
+  ;;; sockets
+
+  (define-record-type <socket>
+    (make-socket type fd)
+    untangle-socket?
+    (type socket-type)
+    (fd socket-fd))
+
+  (define SOCK_NONBLOCK 2048)
+
+  ;; TODO: benchmark? make it configureable?
+  (define backlog 1024)
+
+  (define (make-untangle-tcp-server-socket ip port)
+    (define domain=inet 2)
+    (define type=non-blocking-stream (fxlogior SOCK_NONBLOCK 1))
+    (define protocol=ip 0)
+    (define fd (check 'untangle
+                      (socket-socket domain=inet
+                                     type=non-blocking-stream
+                                     protocol=ip)))
+
+    (with-foreign-free (make-socket-inet-address ip port)
+      (lambda (address)
+        ;; where 16 is (ftype-sizeof struct-sockaddr-in)
+        (check 'untangle (socket-bind fd address 16))))
+
+    (check 'untangle (socket-listen fd backlog))
+
+    (make-socket 'tcp-server-socket fd))
+
+  (define (untangle-socket-close socket)
+    (check 'untangle (socket-close (socket-fd socket))))
+
+  (define EWOULDBLOCK 11)
+  (define EAGAIN 11)
+
+  (define (untangle-socket-connections socket)
+    ;; XXX: Returns an asynchronous generator.
+    (define untangle (untangled))
+
+    (define accepted-fds '())
+
+    (define (on-pause k)
+      (entangle-register-read! (untangle-entangle untangle)
+                               (socket-fd socket)
+                               k))
+
+
+    (define (accept!)
+      (assume (null? accepted-fds))
+      (escape untangle on-pause)
+      (entangle-unregister-read! (untangle-entangle untangle)
+                                 (socket-fd socket))
+
+      ;; Accept some connections.
+      (let loop ()
+        (let ((out (socket-accept4 (socket-fd socket)
+                                   0 0 SOCK_NONBLOCK)))
+          (if (fx=? out -1)
+              (let ((code (errno)))
+                ;; If code is EWOULDBLOCK or EAGAIN exit the loop
+                (unless (or (fx=? code EWOULDBLOCK)
+                            (fx=? code EAGAIN))
+                  (error 'untangle (strerror code) code)))
+              (set! accepted-fds (cons out accepted-fds))
+              ;; Try to accept more file descriptors
+              (loop)))))
+
+    (assume (eq? (socket-type socket) 'tcp-server-socket))
+    (assume (untangled))
+
+    (lambda ()
+      (when (null? accepted-fds)
+        (accept!))
+      (let ((connection (make-socket 'connection (car accepted-fds))))
+        (set! accepted-fds (cdr accepted-fds))
+        connection)))
+
+  (define (untangle-socket-generator socket)
+    ;; Returns a generator of byte
+
+    (define untangle (untangled))
+
+    (define (connection-generator fd)
+      ;; The value 1024 should be benchmarked somehow.
+      (define bytevector (make-bytevector 1024))
+      (define index -1)
+      (define count -1)
+      (define untangle (untangled))
+
+      (define (on-pause resume)
+        (entangle-register-read! (untangle-entangle untangle)
+                                 fd
+                                 resume))
+
+      (define (read!)
+        (escape untangle on-pause)
+        (entangle-unregister-read! (untangle-entangle untangle)
+                                   fd)
+        (set! count
+              (check 'untangle
+               (with-lock (list bytevector)
+                 (socket-recv fd
+                              (bytevector-pointer bytevector)
+                              (bytevector-length bytevector)
+                              0))))
+        (set! index 0))
+
+      (lambda ()
+        (when (fx=? index count)
+          (read!))
+        (let ((byte (bytevector-ref buffer index)))
+          (set! index (fx+ index 1))
+          byte)))
+
+    (assume untangle)
+
+    (case (socket-type socket)
+      ((connection) (connection-generator (socket-fd socket)))
+      (else (raise 'not-implemented))))
+
+  (define (untangle-socket-accumulator socket)
+    ;; Returns an accumulator of bytevector
+
+    (define untangle (untangled))
+
+    (define (connection-accumulator socket)
+      (define untangle (untangled))
+
+      (lambda (bytevector)
+        (define (on-pause resume)
+          (entangle-register-write! (untangle-entangle untangle)
+                                    fd
+                                    resume))
+
+        (escape untangle on-pause)
+        (entangle-unregister-write! (untangle-entangle untangle)
+                                    fd)
+        (with-lock (list bytevector)
+          (let loop ((index 0))
+            ;; pointers can be bignum, so use + instead of fx+
+            (define pointer (+ (bytevector-pointer bytevector)
+                               (fx* index 8)))
+            (define length (fx- (bytevector-length bytevector)
+                                (fx* index 8)))
+            (define count (check 'untangle
+                                 (socket-send fd
+                                              pointer
+                                              length
+                                              0)))
+            (unless (fx=? count length)
+              (loop (fx+ index count)))))))
+
+    (assume untangle)
+
+    (case (socket-type socket)
+      ((connection) (connection-accumulator (socket-fd socket)))
+      (else (raise 'not-implemented))))
