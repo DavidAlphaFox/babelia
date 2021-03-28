@@ -7,7 +7,7 @@
           untangle-bind
           untangle-channel?
           untangle-channel-recv
-          untangle-channel-select
+          untangle-channel-recv*
           untangle-channel-send
           untangle-closing?
           untangle-listen
@@ -41,12 +41,10 @@
 
   (define (box-append! box lst)
     ;; Add LST to the front of the list that is in BOX
-
-    ;; TODO: Benchmark against an implementation that rely on
-    ;; box-cons!
-    (define old (unbox box))
-    (unless (box-cas! box box (append lst old))
-      (box-append! box lst)))
+    (let loop ((lst lst))
+      (unless (null? lst)
+        (box-cons box (car lst))
+        (loop (cdr lst)))))
 
   (define (box-uncons! box default)
     ;; Remove the first item from the front of the list that is in BOX
@@ -136,7 +134,7 @@
     (queue untangle-queue untangle-queue!)
     (entangle untangle-entangle))
 
-  (define untangled? (make-parameter #f))
+  (define untangled (make-parameter #f))
 
   (define (make-untangle)
     (make-untangle% 'init
@@ -145,7 +143,8 @@
                     (box '())
                     (make-entangle)))
 
-  (define (untangle-spawn untangle thunk)
+  (define (untangle-spawn% untangle thunk)
+    (assume untangle)
     ;; THUNK will be executed at the next tick. See
     ;; untangle-exec-expired-continuations.
     (define when (untangle-time untangle))
@@ -156,34 +155,53 @@
     (define item (cons when thunk))
     (box-cons! (untangle-queue untangle) item))
 
-  (define (untangle-stop untangle)
+  (define untangle-spawn
+    (case-lambda
+     ((thunk) (untangle-spawn% (untangled) thunk))
+     ((untangle thunk) (untangle-spawn% untangle thunk))))
+
+  (define (untangle-stop% untangle)
+    (assume untangle)
     (untangle-status! untangle 'stopping))
+
+  (define untangle-stop
+    (case-lambda
+     (() (untangle-stop% (untangled)))
+     ((untangle) (untangle-stop% untangle))))
+
+  (define untangle-stopping?
+    (case-lambda
+     (() (untangle-stopping? (untangled)))
+     ((obj)
+      (or (eq? obj 'stopping-singleton)
+          (eq? (untangle-status untangle) 'stopping)))))
 
   (define (untangle-start untangle)
     ;; Only one instance of <untangle> can be active per POSIX thread.
-    (assume? (not (untangled?)))
-    (untangled? #t)
+    ;; untangle-start can not be called from a green thread, or a
+    ;; POSIX thread forked in green thread. POSIX thread be must setup
+    ;; before calling untangle-start in the main thread.
+    (assume? (not (untangled)))
+    (untangled untangle)
     (untangle-status! untangle 'running)
     (let loop ()
-      (when (and (untangle-busy? untangle)
-                 (not (eq? (untangle-status untangle)
-                           'stopping)))
+      (when (untangle-continue? untangle)
         (untangle-tick untangle)
         (loop)))
     (untangle-status! untangle 'stopped)
     (untangled? #f))
 
-  (define (untangle-busy? untangle)
-    ;; TODO: rename to untangle-continue? and include the check on
-    ;; status.
-    (raise 'not-implemented))
+  (define (untangle-continue? untangle)
+    (not (untangle-stopping? untangle)))
 
   (define (untangle-tick untangle)
     (untangle-time! untangle (current-time 'time-monotonic))
     (untangle-exec-expired-continuations untangle)
     (untangle-exec-network-continuations untangle))
 
-  (define (untangle-sleep untangle nanoseconds seconds)
+  (define (untangle-sleep nanoseconds seconds)
+
+    (define untangle (untangled))
 
     (define (on-sleep resume)
       ;; RESUME is untangle-sleep continuation.
@@ -193,15 +211,12 @@
       (box-cons! (untangle-queue untangle) item))
 
     ;; untangle-sleep is necessarily called while untangle is running,
-    ;; where untangled? returns #t, otherwise user code need to call
-    ;; POSIX sleep.
-    (assume (untangled?))
+    ;; where untangled is true, otherwise user code need to call POSIX
+    ;; sleep.
+    (assume untangle)
     (escape untangle on-sleep))
 
   (define (untangle-exec-expired-continuations untangle)
-
-    (define (queue-snapshot-and-nullify)
-      (unbox-and-swap (untangle-queue untangle) '()))
 
     (define time (untangle-time untangle))
 
@@ -226,7 +241,7 @@
                   (loop (cdr lst) (cons (car lst) out))
                   (loop (cdr lst) out))))))
 
-    (define waiting (queue-snapshot-and-nullify))
+    (define waiting (unbox-and-swap (untangle-queue untangle) '()))
     (define pending (filter-map call-or-keep waiting))
 
     (box-append! (untangle-queue untangle) pending))
@@ -244,20 +259,21 @@
     (waiters channel-waiters))
 
   (define-record-type <waiter>
-    (make-waiter resume obj mutex condition)
+    (make-waiter resume)
     waiter?
-    (resume waiter-resume%)
-    (obj waiter-obj waiter-obj!)
-    (mutex waiter-mutex)
-    (condition waiter-condition))
+    (resume waiter-resume%))
 
   (define (waiter-resume obj)
     ((waiter-resume% waiter) obj))
 
-  (define (untangle-make-channel untangle)
-    (make-untangle-channel% untangle (box '()) (box '())))
+  (define untangle-make-channel
+    (case-lambda
+     (() (untangle-make-channel (untangled)))
+     ((untangle)
+      (assume untangle)
+      (make-untangle-channel% untangle (box '()) (box '())))))
 
-  (define untangle-closing-singleton '(untangle-closing-singleton))
+  (define stopping-singleton '(stopping-singleton))
 
   (define (untangle-channel-send channel obj)
 
@@ -267,78 +283,83 @@
         (waiter-resume obj)
         (box-cons! (channel-inbox channel) obj)))
 
-  (define (untangle-channel-recv-one channel)
-    (define untangle (untangle))
-    (if (eq? (untangle-status (channel-untangle)) 'stopping)
-        untangle-closing-singleton
-        (if untangle
-            (channel-recv-one-with-untangle untangle channel)
-            (channel-recv-one-without-untangle channel))))
+  (define (untangle-channel-recv channel)
+    ;; User can only receive inside the current event-loop for
+    ;; entanglements look into channels...
+    (define untangle (untangled))
+    (if untangle
+        (channel-recv-with-untangle untangle channel)
+        (channel-recv-without-untangle channel)))
 
   (define inbox-empty '(inbox-empty))
 
-  (define (channel-recv-one-with-untangle untangle channel)
+  (define (channel-recv-with-untangle untangle channel)
 
-    (define (resume waiter obj k)
-      ;; When box-remove! find waiter in channel-waiters, it returns
-      ;; true. Otherwise, it means some other POSIX thread acquired
-      ;; the waiter and already resumed the waiter.
-      (when (box-remove! (channel-waiters channel) waiter)
-        ;; Resume the green thread with K in the POSIX thread that is
-        ;; receiving and not in the POSIX thread that created CHANNEL.
-        (untangle-spawn untangle (lambda () (k obj)))))
+    (define (on-pause k)
+      (define (resume obj)
+        ;; When box-remove! find waiter in channel-waiters, it returns
+        ;; true. Otherwise, it means some other POSIX thread acquired
+        ;; the waiter and already resumed the waiter.
+        (when (box-remove! (channel-waiters channel) waiter)
+          ;; Resume the green thread with K in the POSIX thread that
+          ;; is receiving and not in the POSIX thread that created
+          ;; CHANNEL.
+          (if (untangle-stopping? untangle)
+              (untangle-spawn untangle
+                              (lambda ()
+                                (k stopping-singleton)))
+              (untangle-spawn untangle (lambda () (k obj))))))
 
-    (define (pause!! k)
-      (define waiter (make-waiter (lambda (obj) (resume waiter obj k))
-                                  #f #f #f #f))
+      (define waiter (make-waiter resume))
+
       (box-cons! (channel-waiters channel) waiter))
 
-    (define (pause!)
+    (define (pause)
       ;; Mind the fact that the escapade is bound to the calling
       ;; <untangle> instance that is UNTANGLE.
-      (escape untangle pause!!))
+      (escape untangle on-pause))
 
-    (if (eq? (untangle-status untangle) 'stopping)
-        untangle-closing-singleton
+    (if (untangle-stopping? untangle)
+        stopping-singleton
         (let ((obj (box-uncons! (channel-inbox channel)
                                 obj
                                 inbox-empty)))
           (if (eq? obj inbox-empty)
-              (pause!)
+              (pause)
               obj))))
 
-  (define (channel-recv-one-without-untangle channel)
+  (define (channel-recv-without-untangle channel)
 
     (define (wait-and-return!)
 
-      (define (resume waiter obj)
+      (define out (box #f))
+      (define mutex (make-mutex))
+      (define condition (make-condition))
+
+      (define (resume obj)
         (when (box-remove! (channel-waiters channel) waiter)
           ;; there is no need to protect WAITER with mutex, since it
           ;; was removed from channel-waiters atomically, there can be
           ;; no race conditions.
-          (waiter-obj! waiter obj)
-          (condition-signal (waiter-condition channel))))
+          (set-box! out obj)
+          (condition-signal condition)))
 
-      (define waiter (make-waiter (lambda (obj) (resume waiter obj))
-                                  #f
-                                  #f
-                                  (make-mutex)
-                                  #f
-                                  (make-condition)))
+      (define waiter (make-waiter resume))
 
       (box-cons! (channel-waiters channel) waiter)
 
-      (with-mutex (waiter-mutex waiter)
-        (condition-wait (waiter-condition waiter)
-                        (waiter-mutex waiter)))
+      (with-mutex mutex
+        (condition-wait condition mutex))
 
-      (waiter-obj waiter))
+      (unbox out))
 
     (define obj (box-uncons! (channel-inbox channel) obj inbox-empty))
 
-    (if (eq? obj inbox-empty)
-        (wait-and-return!)
-        obj))
+    (if (untangle-stopping? (channel-untangle channel))
+        stopping-singleton
+        (if (eq? obj inbox-empty)
+            (wait-and-return!)
+            obj)))
 
   (define (list->generator lst)
     (lambda ()
@@ -363,28 +384,18 @@
             item
             (proc item)))))
 
-  (define (untangle-channel-recv channels)
+  (define (untangle-channel-recv* channels)
     ;; Since untangle-channel-send will not pause the calling thread,
     ;; there does not seem to be a point in building equivalent to
     ;; select, epoll, or kqueue. Untangle user only need to be
-    ;; notified when a channel among several others can be read.
+    ;; notified when one channel among other channels has an obj
+    ;; ready.
 
-    (define (channel-stopping? channel)
-      (eq? (untangle-status (channel-untangle)) 'stopping))
+    (define untangle (untangled))
 
-    (define (stopping?)
-      (generator-any?
-       (generator-map channel-stopping?
-                      (list->generator channels))))
-
-    (define untangle (untangle))
-
-    (if (or (stopping?) (eq? (untangle-status untangle)
-                             'stopping))
-        untangle-closing-singleton
-        (if untangle
-            (channel-recv-with-untangle untangle channels)
-            (channel-recv-without-untangle channels))))
+    (if untangle
+        (channel-recv-with-untangle* untangle channels)
+        (channel-recv-without-untangle* channels)))
 
   (define (maybe-for-each? proc a b)
     ;; similar to for-each, except it stops as soon as PROC
@@ -396,6 +407,9 @@
           (if (proc (car a) (car b))
               (loop (cdr a) (cdr b))
               #f))))
+
+  (define (channel-stopping? channel)
+    (untangle-stopping? (channel-untangle channel)))
 
   (define (channel-recv-with-untangle untangle channels)
 
@@ -410,7 +424,7 @@
                   (loop (cdr channels))
                   (values channel out))))))
 
-    (define (make-shared-waiter channel pool mutex k)
+    (define (make-waiter* channel mutex k pool)
 
       (define (maybe-remove!? channel waiter)
         (let loop ((waiters (channel-waiters channel))
@@ -425,59 +439,74 @@
 
       (define (resume obj)
         ;; first try to remove all waiters from the pool, to avoid
-        ;; that this procedures is called twice.
+        ;; that this procedure is called twice.
         (with-mutex mutex
           (let ((continue? (apply maybe-for-each?
                                   maybe-remove!?
                                   (unbox poll))))
-          ;; When maybe-for-each? returns #t, it means all the waiters
-          ;; were found in registred channels in POOL.  Otherwise, one
-          ;; was not found, hence none is present.  That is none,
-          ;; because the expression is protected with a mutex, hence
-          ;; if the code went through it it removed everything ie. it
-          ;; can not be the partial of a concurrent excecution of
-          ;; resume.
+            ;; When maybe-for-each? returns #t, it means all the
+            ;; waiters were found in the registred channels in POOL.
+            ;; Otherwise, one was not found, hence none is present.
+            ;; That is none, because the expression is protected with
+            ;; a mutex, hence if the code went through it, it removed
+            ;; everything ie. it can not be the partial of a
+            ;; concurrent excecution of the procedure resume.
 
-          ;; When two POSIX threads, race to send on CHANNELS, resume
-          ;; might be called twice, but only one will win, because the
-          ;; waiter should only be resumed once.
+            ;; When two POSIX threads, race to send on CHANNELS,
+            ;; resume might be called twice, but only one will win,
+            ;; because the waiter should only be resumed once.
 
-          ;; At this point the mutex has done its job. The code
-          ;; is wrapped inside with-mutex to avoid set!...
-          (when continue?
-            ;; continuation is the same whatever the waiter, since
-            ;; they reprenst the same recv call.
-            (untangle-spawn untangle (lambda () (k obj)))))))
+            ;; At this point the mutex has done its job. The code
+            ;; is wrapped inside with-mutex to avoid set!...
+            (when continue?
+              ;; continuation is the same whatever the waiter, since
+              ;; they represent the same recv call.
+              (if (or (untangle-stopping? untangle)
+                      (untangle-stopping? (channel-untangle channel)))
+                  (untangle-spawn untangle
+                                  (lambda () (k channel
+                                                stopping-singleton)))
+                  (untangle-spawn untangle
+                                  (lambda () (k channel obj))))))))
 
-      (define waiter (make-waiter resume #f #f #t #f))
+      (define waiter (make-waiter resume))
 
       (set-box! pool (cons (list channel waiter) (unbox pool)))
 
-      waiter)
+      waiter))
 
-    (define (make-waiters k)
-      (define mutex (make-mutex))
-      (define pool (box '()))
+  (define (on-pause k)
+    (define mutex (make-mutex))
+    (define pool (box '()))
 
-      (map (lambda (channel)
-             (make-shared-waiter channel pool mutex k))
-           channels))
+    (for-each (lambda (c)
+                (box-cons! (channel-waiters c)
+                           (make-waiter* c mutex k pool)))
+              channels))
 
-    (define (pause!! k)
-      (define waiters (make-waiters k))
-      (for-each (lambda (c w) (box-cons! (channel-waiters c) w))
-                channels waiters))
+  (define (pause)
+    (escape untangle on-pause))
 
-    (define (pause!)
-      (escape untangle pause!!))
+  (define (stopping?)
+    (or (untangle-stopping untangle)
+        (generator-any?
+         (generator-map channel-stopping?
+                        (list->generator channels)))))
 
-    (call-with-values inboxes-pop!
-      (lambda (channel obj)
-        (if channel
-            (values channel obj)
-            (pause!)))))
+  (if (stopping?)
+      stopping-singleton
+      (call-with-values inboxes-pop!
+        (lambda (channel obj)
+          (if channel
+              (values channel obj)
+              (pause)))))
 
-  (define (channel-recv-without-untangle channels)
+  (define (channel-recv-without-untangle* channels)
+
+    (define out (box #f))
+    (define mutex (make-mutex))
+    (define condition (make-condition))
+    (define pool (box '()))
 
     (define (inboxes-pop!)
       (let loop ((channels channels))
@@ -490,13 +519,13 @@
                   (loop (cdr channels))
                   (values channel out))))))
 
-    (define (make-shared-waiter channel out mutex condition pool)
+    (define (make-waiter* channel)
 
       (define (maybe-remove!? channel waiter)
         (let loop ((waiters (channel-waiters channel))
                    (out '()))
           (if (null? waiters)
-              #f ;; WAITER was not found channel-waiters
+              #f ;; WAITER was not found in channel-waiters
               (if (eq? (car waiters) waiter)
                   (and (channel-waiters! (append out (cdr waiters)))
                        #t)
@@ -507,48 +536,32 @@
         (with-mutex mutex
           (let ((continue? (apply maybe-for-each?
                                   maybe-remove!?
-                                  (unbox poll))))
+                                  (unbox pool))))
             (when continue?
-              (set-box! out obj)
+              (if (channel-stopping channel)
+                  (set-box! out (list channel stopping-singleton))
+                  (set-box! out (list channel obj)))
               (condition-signal condition)))))
 
-      (define waiter (make-waiter resume #f #f #t #f))
+      (define waiter (make-waiter resume))
 
       (set-box! pool (cons (list channel waiter) (unbox pool)))
 
       waiter)
 
-    (define (make-waiters out mutex condition)
+    (define (stopping?)
+      (or (untangle-stopping untangle)
+          (generator-any?
+           (generator-map channel-stopping?
+                        (list->generator channels)))))
 
-      (define pool (box '()))
+    (for-each (lambda (c)
+                (box-cons! (channel-waiters c) (make-waiter* c)))
+              channels)
 
-      (map (lambda (channel)
-             (make-shared-waiter channel
-                                 out
-                                 mutex
-                                 condition
-                                 pool))
-           channels))
-
-    (define (wait-and-return!)
-
-      (define out (box #f))
-      (define mutex (make-mutex))
-      (define condition (make-condition))
-
-      (define waiters (make-waiters out mutex condition))
-
-      (for-each (lambda (c w) (box-cons! (channel-waiters c) w))
-                channels waiters))
-
-      (with-mutex (waiter-mutex waiter)
-        (condition-wait (waiter-condition waiter)
-                        (waiter-mutex waiter)))
-
-      (waiter-obj waiter))
-
-    (call-with-values inboxes-pop!
-      (lambda (channel obj)
-        (if channel
-            (values channel obj)
-            (wait-and-return!)))))
+    (if (stopping?)
+        stopping-singleton
+        (with-mutex mutex
+          (condition-wait condition
+                          mutex)
+          (apply values (unbox out))))))
