@@ -152,9 +152,9 @@
     ;; untangle-exec-expired-continuations.
     (define when (untangle-time untangle))
     ;; Since there is no fast lock-free or thread-safe priority queue,
-    ;; then the code rely on a list of pairs. At least, with Babelia,
-    ;; the lock-free or thread-safe priority queue, MIGHT NOT be worth
-    ;; the effort.
+    ;; the code rely on a list of pairs. At least, with Babelia, the
+    ;; lock-free or thread-safe priority queue, MIGHT NOT be worth the
+    ;; effort.
     (define item (cons when thunk))
     (box-cons! (untangle-queue untangle) item))
 
@@ -533,7 +533,7 @@
         (let loop ((resumers resumers)
                    (out '()))
           (if (null? resumers)
-              #f ;; RESUMER was not found channel-resumers
+              #f ;; RESUMER was not found in channel-resumers
               (if (eq? (car resumers) resumer)
                   (begin
                     (adjoin! out)
