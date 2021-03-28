@@ -11,7 +11,7 @@
    address-info-flags->integer
    integer->address-info-flags
    msg-flag->integer
-   socket-accept
+   socket-accept4
    socket-bind
    socket-close
    socket-connect
@@ -23,9 +23,17 @@
    socket-sendto
    socket-setsockopt
    socket-getsockname
-   socket-socket)
+   socket-socket
+   make-socket-inet-address)
 
   (import (chezscheme) (arew cffi))
+
+  (define-syntax define-syntax-rule
+    (syntax-rules ()
+      ((define-syntax-rule (keyword args ...) body)
+       (define-syntax keyword
+         (syntax-rules ()
+           ((keyword args ...) body))))))
 
   (define socket-close (foreign-procedure* int "close" (int)))
 
@@ -129,6 +137,37 @@
     (struct (family unsigned-short)
             (path (array 108 char))))
 
+  (define (make-socket-inet-address ip port)
+
+    (define (massage* one two three four)
+      (fx+ (fxarithmetic-shift-left one 24)
+           (fxarithmetic-shift-left two 16)
+           (fxarithmetic-shift-left three 8)
+           four))
+
+    (define (massage string)
+      ;; convert 4.3.2.1 into the big endian integer representation.
+      (define count (string-length string))
+      (let loop ((index index)
+                 (out '(())))
+        (if (fx=? index count)
+            (apply massage* out)
+            (let ((char (string-ref string index)))
+              (if (char=? char #\.)
+                  (loop (fx+ index 1)
+                        (cons (string->number
+                               (list->string (car out)))
+                              (cdr out)))
+                  (loop (fx+ index 1)
+                        (cons (cons char (car out))
+                              (cdr out))))))))
+
+    (let ((out (ftype-alloc struct-sockaddr-in)))
+      (ftype-set! struct-sockaddr-in (family) out 2) ;; family=inet
+      (ftype-set! struct-sockaddr-in (port) out port)
+      (ftype-set! struct-sockaddr-in (address) out (massage ip))
+      out))
+
   (define socket-connect
     (foreign-procedure* int "connect" (int void* int)))
 
@@ -210,8 +249,8 @@
   (define socket-sendto
     (foreign-procedure* ssize_t "sendto" (int void* size_t int void* int)))
 
-  (define socket-accept
-    (foreign-procedure int "accept" (int void* void*) int))
+  (define socket-accept4
+    (foreign-procedure int "accept" (int void* void* int) int))
 
   (define socket-bind
     (foreign-procedure* int "bind" (int void* int)))
