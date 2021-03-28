@@ -562,9 +562,10 @@
            (generator-map channel-stopping?
                         (list->generator channels)))))
 
-    (for-each (lambda (c)
-                (box-cons! (channel-resumers c) (make-resumer c)))
-              channels)
+    (with-mutex mutex
+      (for-each (lambda (c)
+                  (box-cons! (channel-resumers c) (make-resumer c)))
+                channels))
 
     (if (stopping?)
         stopping-singleton
