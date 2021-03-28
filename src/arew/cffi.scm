@@ -24,13 +24,13 @@
   (define-syntax-rule (foreign-procedure* return ptr args ...)
     (foreign-procedure __collect_safe ptr (args ...) return))
 
-  (define-syntax-rule (with-lock obj body ...)
+  (define-syntax-rule (with-lock objs body ...)
     (begin
-      (lock-object obj)
+      (for-each lock-object objs)
       (call-with-values (lambda () body ...)
-        (lambda out
-          (unlock-object obj)
-          (apply values out)))))
+        (lambda args
+          (for-each unlock-object objs)
+          (apply values args)))))
 
   (define-syntax-rule (make-double-pointer)
     (bytevector-pointer (make-bytevector 8)))
