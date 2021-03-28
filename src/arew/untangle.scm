@@ -129,10 +129,10 @@
        (escapade escapade-singleton proc k))))
 
   (define-record-type <untangle>
-    (make-untangle% status escape time queue entangle)
+    (make-untangle% status escapade time queue entangle)
     untangle?
     (status untangle-status untangle-status!)
-    (escape untangle-escapade untangle-escapade!)
+    (escapade untangle-escapade untangle-escapade!)
     (time untangle-time untangle-time!)
     (queue untangle-queue untangle-queue!)
     (entangle untangle-entangle))
