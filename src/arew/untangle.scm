@@ -32,8 +32,8 @@
 
   ;;; box helpers that use box-cas!
   ;;
-  ;; TODO: try to box-cas! a number of magic N number of times and
-  ;; raise an exception.
+  ;; TODO: try to box-cas! a magic N number of times and raise an
+  ;; exception.
   (define (box-cons! box item)
     ;; Add ITEM to the front of the list that is in BOX
     (unless (box-cas! box lst (cons item (unbox box)))
@@ -253,19 +253,11 @@
   ;; channel
 
   (define-record-type <untangle-channel>
-    (make-untangle-channel% untangle inbox waiters)
+    (make-untangle-channel% untangle inbox resumers)
     untangle-channel?
     (untangle channel-untangle)
     (inbox channel-inbox)
-    (waiters channel-waiters))
-
-  (define-record-type <waiter>
-    (make-waiter resume)
-    waiter?
-    (resume waiter-resume%))
-
-  (define (waiter-resume obj)
-    ((waiter-resume% waiter) obj))
+    (resumers channel-resumers))
 
   (define untangle-make-channel
     (case-lambda
@@ -278,10 +270,10 @@
 
   (define (untangle-channel-send channel obj)
 
-    (define waiter (box-uncons! (channel-waiters channel) #f))
+    (define resumer (box-uncons! (channel-resumers channel) #f))
 
-    (if waiter
-        (waiter-resume obj)
+    (if resumer
+        (resumer obj)
         (box-cons! (channel-inbox channel) obj)))
 
   (define (untangle-channel-recv channel)
@@ -297,11 +289,11 @@
   (define (channel-recv-with-untangle untangle channel)
 
     (define (on-pause k)
-      (define (resume obj)
-        ;; When box-remove! find waiter in channel-waiters, it returns
-        ;; true. Otherwise, it means some other POSIX thread acquired
-        ;; the waiter and already resumed the waiter.
-        (when (box-remove! (channel-waiters channel) waiter)
+      (define (resumer obj)
+        ;; When box-remove! find resumer in channel-resumers, it
+        ;; returns true. Otherwise, it means some other POSIX thread
+        ;; acquired the resumer and already resumed it.
+        (when (box-remove! (channel-resumers channel) resumer)
           ;; Resume the green thread with K in the POSIX thread that
           ;; is receiving and not in the POSIX thread that created
           ;; CHANNEL.
@@ -311,9 +303,7 @@
                                 (k stopping-singleton)))
               (untangle-spawn untangle (lambda () (k obj))))))
 
-      (define waiter (make-waiter resume))
-
-      (box-cons! (channel-waiters channel) waiter))
+      (box-cons! (channel-resumers channel) resumer))
 
     (define (pause)
       ;; Mind the fact that the escapade is bound to the calling
@@ -333,26 +323,24 @@
 
     (define (wait-and-return!)
 
-      (define out (box #f))
+      (define out #f)
       (define mutex (make-mutex))
       (define condition (make-condition))
 
-      (define (resume obj)
-        (when (box-remove! (channel-waiters channel) waiter)
-          ;; there is no need to protect WAITER with mutex, since it
-          ;; was removed from channel-waiters atomically, there can be
-          ;; no race conditions.
-          (set-box! out obj)
+      (define (resumer obj)
+        (when (box-remove! (channel-resumers channel) resumer)
+          ;; There is no need to protect RESUMER with mutex, since it
+          ;; was removed from channel-resumers atomically, there can
+          ;; be no race conditions.
+          (set! out obj)
           (condition-signal condition)))
 
-      (define waiter (make-waiter resume))
-
-      (box-cons! (channel-waiters channel) waiter)
+      (box-cons! (channel-resumers channel) resumer)
 
       (with-mutex mutex
         (condition-wait condition mutex))
 
-      (unbox out))
+      out)
 
     (define obj (box-uncons! (channel-inbox channel) obj inbox-empty))
 
@@ -412,7 +400,10 @@
   (define (channel-stopping? channel)
     (untangle-stopping? (channel-untangle channel)))
 
-  (define (channel-recv-with-untangle untangle channels)
+  (define (channel-recv-with-untangle* untangle channels)
+
+    (define mutex (make-mutex))
+    (define pool '())
 
     (define (inboxes-pop!)
       (let loop ((channels channels))
@@ -425,28 +416,38 @@
                   (loop (cdr channels))
                   (values channel out))))))
 
-    (define (make-waiter* channel mutex k pool)
+    (define (make-resumer channel k)
 
-      (define (maybe-remove!? channel waiter)
-        (let loop ((waiters (channel-waiters channel))
+      (define (maybe-remove!? channel resumer)
+
+        (define box (channel-resumers channel))
+
+        (define resumers (unbox-and-swap box '()))
+
+        (define (adjoin! out)
+          (channel-resumers! channel
+                             (box-adjoin! box out)))
+
+        (let loop ((resumers resumers)
                    (out '()))
-          (if (null? waiters)
-              #f ;; WAITER was not found channel-waiters
-              (if (eq? (car waiters) waiter)
-                  (and (channel-waiters! (append out (cdr waiters)))
-                       #t)
-                  (loop (cdr waiters)
-                        (cons (car waiters) out))))))
+          (if (null? resumers)
+              #f ;; RESUMER was not found channel-resumers
+              (if (eq? (car resumers) resumer)
+                  (begin
+                    (adjoin! out)
+                    #t)
+                  (loop (cdr resumers)
+                        (cons (car resumers) out))))))
 
-      (define (resume obj)
-        ;; first try to remove all waiters from the pool, to avoid
+      (define (resumer obj)
+        ;; first try to remove all resumers from the pool, to avoid
         ;; that this procedure is called twice.
         (with-mutex mutex
           (let ((continue? (apply maybe-for-each?
                                   maybe-remove!?
-                                  (unbox poll))))
+                                  poll)))
             ;; When maybe-for-each? returns #t, it means all the
-            ;; waiters were found in the registred channels in POOL.
+            ;; resumers were found in the registred channels in POOL.
             ;; Otherwise, one was not found, hence none is present.
             ;; That is none, because the expression is protected with
             ;; a mutex, hence if the code went through it, it removed
@@ -455,12 +456,12 @@
 
             ;; When two POSIX threads, race to send on CHANNELS,
             ;; resume might be called twice, but only one will win,
-            ;; because the waiter should only be resumed once.
+            ;; because the resumer should only be resumed once.
 
             ;; At this point the mutex has done its job. The code
             ;; is wrapped inside with-mutex to avoid set!...
             (when continue?
-              ;; continuation is the same whatever the waiter, since
+              ;; continuation is the same whatever the resumer, since
               ;; they represent the same recv call.
               (if (or (untangle-stopping? untangle)
                       (untangle-stopping? (channel-untangle channel)))
@@ -470,19 +471,13 @@
                   (untangle-spawn untangle
                                   (lambda () (k channel obj))))))))
 
-      (define waiter (make-waiter resume))
+      (set! pool (cons (list channel resumer) pool))
 
-      (set-box! pool (cons (list channel waiter) (unbox pool)))
-
-      waiter))
+      resumer))
 
   (define (on-pause k)
-    (define mutex (make-mutex))
-    (define pool (box '()))
-
     (for-each (lambda (c)
-                (box-cons! (channel-waiters c)
-                           (make-waiter* c mutex k pool)))
+                (box-cons! (channel-resumers c) (make-resumer c k)))
               channels))
 
   (define (pause)
@@ -504,10 +499,10 @@
 
   (define (channel-recv-without-untangle* channels)
 
-    (define out (box #f))
+    (define out #f)
     (define mutex (make-mutex))
     (define condition (make-condition))
-    (define pool (box '()))
+    (define pool '())
 
     (define (inboxes-pop!)
       (let loop ((channels channels))
@@ -520,35 +515,43 @@
                   (loop (cdr channels))
                   (values channel out))))))
 
-    (define (make-waiter* channel)
+    (define (make-resumer channel)
 
-      (define (maybe-remove!? channel waiter)
-        (let loop ((waiters (channel-waiters channel))
+      (define (maybe-remove!? channel resumer)
+
+        (define box (channel-resumers channel))
+
+        (define resumers (unbox-and-swap box '()))
+
+        (define (adjoin! out)
+          (channel-resumers! channel
+                             (box-adjoin! box out)))
+
+        (let loop ((resumers resumers)
                    (out '()))
-          (if (null? waiters)
-              #f ;; WAITER was not found in channel-waiters
-              (if (eq? (car waiters) waiter)
-                  (and (channel-waiters! (append out (cdr waiters)))
-                       #t)
-                  (loop (cdr waiters)
-                        (cons (car waiters) out))))))
+          (if (null? resumers)
+              #f ;; RESUMER was not found channel-resumers
+              (if (eq? (car resumers) resumer)
+                  (begin
+                    (adjoin! out)
+                    #t)
+                  (loop (cdr resumers)
+                        (cons (car resumers) out))))))
 
-      (define (resume obj)
+      (define (resumer obj)
         (with-mutex mutex
           (let ((continue? (apply maybe-for-each?
                                   maybe-remove!?
-                                  (unbox pool))))
+                                  pool)))
             (when continue?
               (if (channel-stopping channel)
-                  (set-box! out (list channel stopping-singleton))
-                  (set-box! out (list channel obj)))
+                  (set! out (list channel stopping-singleton))
+                  (set! out (list channel obj)))
               (condition-signal condition)))))
 
-      (define waiter (make-waiter resume))
+      (set! pool (cons (list channel resumer) pool))
 
-      (set-box! pool (cons (list channel waiter) (unbox pool)))
-
-      waiter)
+      resumer)
 
     (define (stopping?)
       (or (untangle-stopping untangle)
@@ -557,7 +560,7 @@
                         (list->generator channels)))))
 
     (for-each (lambda (c)
-                (box-cons! (channel-waiters c) (make-waiter* c)))
+                (box-cons! (channel-resumers c) (make-resumer c)))
               channels)
 
     (if (stopping?)
@@ -565,4 +568,4 @@
         (with-mutex mutex
           (condition-wait condition
                           mutex)
-          (apply values (unbox out))))))
+          (apply values out)))))
