@@ -8,7 +8,10 @@
           make-double-pointer
           pointer-dereference
           errno
-          strerror)
+          strerror
+          check
+          ftype-alloc
+          with-foreign-free)
   (import (chezscheme))
 
   (define-syntax define-syntax-rule
@@ -19,7 +22,7 @@
            ((keyword args ...) body))))))
 
   (define-syntax-rule (bytevector-pointer bv)
-    (#%$object-address bv (+ (foreign-sizeof 'void*) 1)))
+    (#%$object-address bv (foreign-sizeof 'void*)))
 
   (define-syntax-rule (foreign-procedure* return ptr args ...)
     (foreign-procedure __collect_safe ptr (args ...) return))
@@ -45,4 +48,21 @@
   (define strerror
     (let ((func (foreign-procedure "strerror" (int) string)))
       (lambda (code)
-        (func code)))))
+        (func code))))
+
+  (define-syntax-rule (check who v)
+    (let ((v* v))
+      (if (fx=? v* -1)
+          (let ((code (errno)))
+            (error who (strerror code) code))
+          v*)))
+
+  (define-syntax-rule (ftype-alloc ftype)
+    (make-ftype-pointer ftype (foreign-alloc (ftype-sizeof ftype))))
+
+  (define-syntax-rule (with-foreign-free pointer proc)
+    (let ((pointer* pointer))
+      (call-with-values (lambda () (proc pointer*))
+        (lambda args
+          (foreign-free pointer*)
+          (apply values args))))))
