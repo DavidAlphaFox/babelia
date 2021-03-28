@@ -28,13 +28,6 @@
 
   (import (chezscheme) (arew cffi))
 
-  (define-syntax define-syntax-rule
-    (syntax-rules ()
-      ((define-syntax-rule (keyword args ...) body)
-       (define-syntax keyword
-         (syntax-rules ()
-           ((keyword args ...) body))))))
-
   (define socket-close (foreign-procedure* int "close" (int)))
 
   ;; taken from /usr/include/bits/socket.h
