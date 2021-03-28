@@ -276,6 +276,7 @@
 
     (if resumer
         (resumer obj)
+        ;; TODO: That might overflow memory.
         (box-cons! (channel-inbox channel) obj)))
 
   (define (untangle-channel-recv channel)
@@ -379,8 +380,8 @@
     ;; Since untangle-channel-send will not pause the calling thread,
     ;; there does not seem to be a point in building equivalent to
     ;; select, epoll, or kqueue. Untangle user only need to be
-    ;; notified when one channel among other channels has an obj
-    ;; ready.
+    ;; notified when one channel among other channels has an obj that
+    ;; can be received.
 
     (define untangle (untangled))
 
@@ -442,8 +443,8 @@
                         (cons (car resumers) out))))))
 
       (define (resumer obj)
-        ;; first try to remove all resumers from the pool, to avoid
-        ;; that this procedure is called twice.
+        ;; first try to remove all resumers from the pool, to
+        ;; implement only-once delivery.
         (with-mutex mutex
           (let ((continue? (apply maybe-for-each?
                                   maybe-remove!?
@@ -453,8 +454,8 @@
             ;; Otherwise, one was not found, hence none is present.
             ;; That is none, because the expression is protected with
             ;; a mutex, hence if the code went through it, it removed
-            ;; everything ie. it can not be the partial of a
-            ;; concurrent excecution of the procedure resume.
+            ;; everything ie. it can not be the partial view of a
+            ;; concurrent excecution of the procedure resumer.
 
             ;; When two POSIX threads, race to send on CHANNELS,
             ;; resume might be called twice, but only one will win,
@@ -582,7 +583,7 @@
 
   (define SOCK_NONBLOCK 2048)
 
-  ;; TODO: benchmark? make it configureable?
+  ;; XXX: benchmark? make it configureable?
   (define backlog 1024)
 
   (define (make-untangle-tcp-server-socket ip port)
@@ -610,7 +611,7 @@
   (define EAGAIN 11)
 
   (define (untangle-socket-connections socket)
-    ;; XXX: Returns an asynchronous generator.
+    ;; XXX: Returns an non-blocking generator of connections.
     (define untangle (untangled))
 
     (define accepted-fds '())
@@ -652,7 +653,7 @@
         connection)))
 
   (define (untangle-socket-generator socket)
-    ;; Returns a generator of byte
+    ;; Returns a non-blocking generator of byte
 
     (define untangle (untangled))
 
@@ -695,7 +696,7 @@
       (else (raise 'not-implemented))))
 
   (define (untangle-socket-accumulator socket)
-    ;; Returns an accumulator of bytevector
+    ;; Returns a non-blocking accumulator of bytevector
 
     (define untangle (untangled))
 
