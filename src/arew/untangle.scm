@@ -44,7 +44,7 @@
     ;; preserving the order.
     (let loop ((lst lst))
       (unless (null? lst)
-        (box-cons box (car lst))
+        (box-cons! box (car lst))
         (loop (cdr lst)))))
 
   (define (box-uncons! box default)
