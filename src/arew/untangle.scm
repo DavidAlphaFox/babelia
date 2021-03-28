@@ -39,8 +39,9 @@
     (unless (box-cas! box lst (cons item (unbox box)))
       (box-cons! box item)))
 
-  (define (box-append! box lst)
-    ;; Add LST to the front of the list that is in BOX
+  (define (box-adjoin! box lst)
+    ;; Add the elements of LST of the list that is in BOX without
+    ;; preserving the order.
     (let loop ((lst lst))
       (unless (null? lst)
         (box-cons box (car lst))
@@ -244,7 +245,7 @@
     (define waiting (unbox-and-swap (untangle-queue untangle) '()))
     (define pending (filter-map call-or-keep waiting))
 
-    (box-append! (untangle-queue untangle) pending))
+    (box-adjoin! (untangle-queue untangle) pending))
 
   (define (untangle-exec-network-continuations untangle)
     (entangle-continue (untangle-entangle untangle)))
