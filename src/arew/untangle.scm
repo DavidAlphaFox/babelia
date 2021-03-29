@@ -68,36 +68,33 @@
         (unbox-and-swap box new)))
 
   ;;
-  ;; XXX: Inside call/ec, escapade-singleton allows to tell
-  ;; how call/ec thunk continuation is called:
+  ;; XXX: Inside call/pause, escapade-singleton allows to tell how
+  ;; call/pause thunk continuation is called:
   ;;
   ;; - nominal case: thunk returned.
   ;;
   ;; - thunk called untangle-escapade, in that case escapade-singleton
   ;; is the first argument of the continuation of thunk inside
-  ;; call/ec.
+  ;; call/pause.
   ;;
   ;; escapade-singleton is a singleton, user code can not create it.
   ;;
 
   (define escapade-singleton '(escapade-singleton))
 
-  ;; TODO: rename call/pause and rename escape to pause.
-
-  (define (call/ec untangle thunk)
+  (define (call/pause untangle thunk)
     (call-with-values (lambda ()
                         (call/1cc
-                         (lambda (k)
-                           ;; K will allow to escape THUNK.
+                         (lambda (escape)
                            (assume (not (untangle-escapade untangle)))
-                           (untangle-escapade! untangle k)
+                           (untangle-escapade! untangle escape)
                            (thunk))))
       (lambda args
         ;; args may be the empty list if THUNK returns nothing.
         (if (and (pair? args) (eq? (car args) escapade-singleton))
             ;; XXX: The following code is the escapade handler! That
             ;; is always a proc and a continuation, because of how
-            ;; escape is implemented. Racket call/ec has an optional
+            ;; pause is implemented. Racket call/ec has an optional
             ;; argument called handler that allows to change that
             ;; behavior.
             (let ((proc (cadr args))
@@ -109,7 +106,7 @@
               (proc k))
             (apply values args)))))
 
-  (define (escape untangle proc)
+  (define (pause untangle proc)
     ;; XXX: Capture the continuation and call it later, that is why it
     ;; use call/cc instead of call/1cc.
     (call/cc
@@ -119,13 +116,13 @@
        ;; The escapade is a call/1cc continuation, no need to keep it
        ;; around, and it might lead to strange bugs.
        (untangle-escapade! untangle #f)
-       ;; XXX: escapade is the continuation of a thunk inside call/ec
-       ;; whereas k is the continuation of the caller of escape inside
-       ;; thunk.
+       ;; XXX: escapade is the continuation of a thunk inside
+       ;; call/pause whereas k is the continuation of the caller of
+       ;; pause inside thunk.
 
-       ;; XXX: Continue with thunk's continuation inside call/ec as
-       ;; known as escapade. Inside call/ec, proc and k are used to
-       ;; build the escape handler.
+       ;; XXX: Continue with thunk's continuation inside call/pause as
+       ;; known as escapade. Inside call/pause, proc and k are used to
+       ;; build the pause handler.
        (escapade escapade-singleton proc k))))
 
   (define-record-type <untangle>
@@ -217,7 +214,7 @@
     ;; where untangled is true, otherwise user code need to call POSIX
     ;; sleep.
     (assume untangle)
-    (escape untangle on-sleep))
+    (pause untangle on-sleep))
 
   (define (untangle-exec-expired-continuations untangle)
 
@@ -311,7 +308,7 @@
     (define (pause)
       ;; Mind the fact that the escapade is bound to the calling
       ;; <untangle> instance that is UNTANGLE.
-      (escape untangle on-pause))
+      (pause untangle on-pause))
 
     (if (untangle-stopping? untangle)
         stopping-singleton
@@ -484,7 +481,7 @@
               channels))
 
   (define (pause)
-    (escape untangle on-pause))
+    (pause untangle on-pause))
 
   (define (stopping?)
     (or (untangle-stopping untangle)
@@ -625,7 +622,7 @@
 
     (define (accept!)
       (assume (null? accepted-fds))
-      (escape untangle on-pause)
+      (pause untangle on-pause)
       (entangle-unregister-read! (untangle-entangle untangle)
                                  (socket-fd socket))
 
@@ -671,7 +668,7 @@
                                  resume))
 
       (define (read!)
-        (escape untangle on-pause)
+        (pause untangle on-pause)
         (entangle-unregister-read! (untangle-entangle untangle)
                                    fd)
         (set! count
@@ -710,7 +707,7 @@
                                     fd
                                     resume))
 
-        (escape untangle on-pause)
+        (pause untangle on-pause)
         (entangle-unregister-write! (untangle-entangle untangle)
                                     fd)
         (with-lock (list bytevector)
