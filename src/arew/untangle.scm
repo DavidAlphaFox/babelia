@@ -225,7 +225,7 @@
           ;; A green thread wants to wake up!
           (begin
             ;; Call the registred thunk
-            ((cdr time+thunk))
+            (call/pause untangle (cdr time+thunk))
             ;; There is no need to call this thunk in the future,
             ;; because it was already called.
             #f)
@@ -617,7 +617,7 @@
     (define (on-pause k)
       (entangle-register-read! (untangle-entangle untangle)
                                (socket-fd socket)
-                               k))
+                               (lambda () (call/pause untangle k))))
 
 
     (define (accept!)
@@ -662,10 +662,10 @@
       (define count -1)
       (define untangle (untangled))
 
-      (define (on-pause resume)
+      (define (on-pause k)
         (entangle-register-read! (untangle-entangle untangle)
                                  fd
-                                 resume))
+                                 (lambda () (call/pause untangle k))))
 
       (define (read!)
         (pause untangle on-pause)
@@ -702,10 +702,10 @@
       (define untangle (untangled))
 
       (lambda (bytevector)
-        (define (on-pause resume)
+        (define (on-pause k)
           (entangle-register-write! (untangle-entangle untangle)
                                     fd
-                                    resume))
+                                    (lambda () (call/pause untangle k))))
 
         (pause untangle on-pause)
         (entangle-unregister-write! (untangle-entangle untangle)
