@@ -24,7 +24,8 @@
                 box unbox set-box! box-cas!
                 make-mutex with-mutex
                 current-time make-time add-duration time<=?
-                make-condition condition-wait condition-signal)
+                make-condition condition-wait condition-signal
+                make-thread-parameter)
           (scheme base)
           (srfi srfi-145)
           (arew cffi)
@@ -67,6 +68,58 @@
         old
         (unbox-and-swap box new)))
 
+  ;;; Cogspace
+  ;;
+  ;; Cogspace is introduced to avoid many `if` in the code related to
+  ;; whether the current POSIX thread is running an untangled
+  ;; cooperative event-loop or it is a bare POSIX thread.  Each case
+  ;; has two procedures: `pause`, and `resume`. The latter is
+  ;; procedure is passed to `pause` handler, to be able to resume the
+  ;; continuation. In total, that is four procedures that may be
+  ;; called by any of the two: green thread inside untangle, or a bare
+  ;; thread. This is done like some to be DRY, and hopefully fast.
+
+  (define-record-type <cogspace>
+    (make-cogspace pause data)
+    cogspace?
+    (pause cogspace-pause-ref)
+    (data cogspace-data))
+
+  (define (cogspace-pause cogspace on-pause)
+    ((cogspace-pause-ref cogspace) on-pause))
+
+  (define (make-bare-cogspace)
+    ;; Also know as bare POSIX thread without untangle
+    (define mutex (make-mutex))
+    (define condition (make-condition))
+    (define thunk)
+
+    (define (pause on-pause)
+      (on-pause (lambda (thunk*)
+                  (set! thunk thunk*)
+                  (condition-signal condition)))
+      (with-mutex mutex
+        (condition-wait condition mutex))
+      (apply values (thunk)))
+
+    (make-cogspace pause #f))
+
+  (define (make-untangle-cogspace untangle)
+
+    (define (pause-with-untangle on-pause)
+      (pause untangle
+             (lambda (k)
+               (on-pause
+                (lambda (thunk)
+                  (untangle-spawn untangle
+                                  (lambda () (apply k (thunk)))))))))
+
+    (make-cogspace pause-with-untangle untangle))
+
+  ;; When the cogspace is first accessed, if the value is #f it is
+  ;; setup correctly.
+  (define cogspace (make-thread-parameter #f))
+
   ;;
   ;; XXX: Inside call/pause, escapade-singleton allows to tell how
   ;; call/pause thunk continuation is called:
@@ -82,6 +135,8 @@
 
   (define escapade-singleton '(escapade-singleton))
 
+  ;; TODO: probably replace untangle with a box that contains the
+  ;; escapade.
   (define (call/pause untangle thunk)
     (call-with-values (lambda ()
                         (call/1cc
@@ -90,6 +145,7 @@
                            (untangle-escapade! untangle escape)
                            (thunk))))
       (lambda args
+        ;; TODO: use chibi's match
         ;; args may be the empty list if THUNK returns nothing.
         (if (and (pair? args) (eq? (car args) escapade-singleton))
             ;; XXX: The following code is the escapade handler! That
@@ -107,6 +163,7 @@
             (apply values args)))))
 
   (define (pause untangle proc)
+    (assume? untangle)
     ;; XXX: Capture the continuation and call it later, that is why it
     ;; use call/cc instead of call/1cc.
     (call/cc
@@ -134,7 +191,8 @@
     (queue untangle-queue untangle-queue!)
     (entangle untangle-entangle))
 
-  (define untangled (make-parameter #f))
+  (define (untangled)
+    (cogspace-data (cogspace)))
 
   (define (make-untangle)
     (make-untangle% 'init
@@ -144,7 +202,6 @@
                     (make-entangle)))
 
   (define (untangle-spawn% untangle thunk)
-    (assume untangle)
     ;; THUNK will be executed at the next tick. See
     ;; untangle-exec-expired-continuations.
     (define when (untangle-time untangle))
@@ -174,7 +231,8 @@
      (() (untangle-stopping? (untangled)))
      ((obj)
       (or (eq? obj 'stopping-singleton)
-          (eq? (untangle-status untangle) 'stopping)))))
+          (and (untangle? obj)
+               (eq? (untangle-status untangle) 'stopping))))))
 
   (define (untangle-start untangle)
     ;; Only one instance of <untangle> can be active per POSIX thread.
@@ -182,14 +240,14 @@
     ;; POSIX thread forked in green thread. POSIX thread be must setup
     ;; before calling untangle-start in the main thread.
     (assume? (not (untangled)))
-    (untangled untangle)
+    (cogspace (make-untangle-cogspace untangle))
     (untangle-status! untangle 'running)
     (let loop ()
       (when (untangle-continue? untangle)
         (untangle-tick untangle)
         (loop)))
     (untangle-status! untangle 'stopped)
-    (untangled? #f))
+    (cogspace #f))
 
   (define (untangle-continue? untangle)
     (not (untangle-stopping? untangle)))
@@ -205,16 +263,17 @@
 
     (define (on-sleep resume)
       ;; RESUME is untangle-sleep continuation.
-      (define delta (make-time 'time-duration nanoseconds seconds))
-      (define when (add-duration (untangle-time untangle) delta))
       (define item (list (cons when resume)))
       (box-cons! (untangle-queue untangle) item))
 
     ;; untangle-sleep is necessarily called while untangle is running,
     ;; where untangled is true, otherwise user code need to call POSIX
     ;; sleep.
-    (assume untangle)
-    (pause untangle on-sleep))
+    (define delta (make-time 'time-duration nanoseconds seconds))
+    (define when (add-duration (untangle-time untangle) delta))
+
+    ;; XXX: This does not make sense with POSIX threads.
+    (cogspace-pause (cogspace) on-sleep))
 
   (define (untangle-exec-expired-continuations untangle)
 
@@ -247,7 +306,10 @@
     (box-adjoin! (untangle-queue untangle) pending))
 
   (define (untangle-exec-network-continuations untangle)
-    (entangle-continue (untangle-entangle untangle XXX)))
+    ;; TODO: wake up at most for the next expiration, possibly 0 since
+    ;; the sleep precision is nanoseconds whether epoll is
+    ;; milliseconds.
+    (entangle-continue (untangle-entangle untangle TODO)))
 
   ;; channel
 
@@ -265,6 +327,8 @@
       (assume untangle)
       (make-untangle-channel% untangle (box '()) (box '())))))
 
+  ;; TODO: remove, because YAGNI and DIY?  replace or mix with
+  ;; untangle-close?
   (define stopping-singleton '(stopping-singleton))
 
   (define (untangle-channel-send channel obj)
@@ -276,19 +340,11 @@
         ;; TODO: That might overflow memory.
         (box-cons! (channel-inbox channel) obj)))
 
-  (define (untangle-channel-recv channel)
-    ;; User can only receive inside the current event-loop for
-    ;; entanglements look into channels...
-    (define untangle (untangled))
-    (if untangle
-        (channel-recv-with-untangle untangle channel)
-        (channel-recv-without-untangle channel)))
-
   (define inbox-empty '(inbox-empty))
 
-  (define (channel-recv-with-untangle untangle channel)
+  (define (untangle-channel-recv untangle channel)
 
-    (define (on-pause k)
+    (define (on-pause resume)
       (define (resumer obj)
         ;; When box-remove! find resumer in channel-resumers, it
         ;; returns true. Otherwise, it means some other POSIX thread
@@ -298,17 +354,15 @@
           ;; is receiving and not in the POSIX thread that created
           ;; CHANNEL.
           (if (untangle-stopping? untangle)
-              (untangle-spawn untangle
-                              (lambda ()
-                                (k stopping-singleton)))
-              (untangle-spawn untangle (lambda () (k obj))))))
+              (resume (lambda () stopping-singleton))
+              (resume (lambda () obj)))))
 
       (box-cons! (channel-resumers channel) resumer))
 
     (define (pause)
       ;; Mind the fact that the escapade is bound to the calling
       ;; <untangle> instance that is UNTANGLE.
-      (pause untangle on-pause))
+      (cogspace-pause (cogspace) on-pause))
 
     (if (untangle-stopping? untangle)
         stopping-singleton
@@ -318,37 +372,6 @@
           (if (eq? obj inbox-empty)
               (pause)
               obj))))
-
-  (define (channel-recv-without-untangle channel)
-
-    (define (wait-and-return!)
-
-      (define out #f)
-      (define mutex (make-mutex))
-      (define condition (make-condition))
-
-      (define (resumer obj)
-        (when (box-remove! (channel-resumers channel) resumer)
-          ;; There is no need to protect RESUMER with mutex, since it
-          ;; was removed from channel-resumers atomically, there can
-          ;; be no race conditions.
-          (set! out obj)
-          (condition-signal condition)))
-
-      (box-cons! (channel-resumers channel) resumer)
-
-      (with-mutex mutex
-        (condition-wait condition mutex))
-
-      out)
-
-    (define obj (box-uncons! (channel-inbox channel) obj inbox-empty))
-
-    (if (untangle-stopping? (channel-untangle channel))
-        stopping-singleton
-        (if (eq? obj inbox-empty)
-            (wait-and-return!)
-            obj)))
 
   (define (list->generator lst)
     (lambda ()
@@ -373,22 +396,9 @@
             item
             (proc item)))))
 
-  (define (untangle-channel-recv* channels)
-    ;; Since untangle-channel-send will not pause the calling thread,
-    ;; there does not seem to be a point in building equivalent to
-    ;; select, epoll, or kqueue. Untangle user only need to be
-    ;; notified when one channel among other channels has an obj that
-    ;; can be received.
-
-    (define untangle (untangled))
-
-    (if untangle
-        (channel-recv-with-untangle* untangle channels)
-        (channel-recv-without-untangle* channels)))
-
   (define (maybe-for-each? proc a b)
-    ;; similar to for-each, except it stops as soon as PROC
-    ;; returns #f.
+    ;; similar to for-each, except it stops as soon as PROC returns
+    ;; #f, and returns #f. Otherwise, if it finish it returns #t.
     (let loop ((a a)
                (b b))
       (if (null? a)
@@ -400,10 +410,7 @@
   (define (channel-stopping? channel)
     (untangle-stopping? (channel-untangle channel)))
 
-  (define (channel-recv-with-untangle* untangle channels)
-
-    (define mutex (make-mutex))
-    (define pool '())
+  (define (untangle-channel-recv* untangle channels)
 
     (define (inboxes-pop!)
       (let loop ((channels channels))
@@ -421,7 +428,6 @@
       (define (maybe-remove!? channel resumer)
 
         (define box (channel-resumers channel))
-
         (define resumers (unbox-and-swap box '()))
 
         (define (adjoin! out)
@@ -476,9 +482,12 @@
       resumer))
 
   (define (on-pause k)
-    (for-each (lambda (c)
-                (box-cons! (channel-resumers c) (make-resumer c k)))
-              channels))
+    ;; TODO: fail! cogspace needs a cogspace-with-mutex that is nop in
+    ;; the case of untangle.
+    (with-mutex mutex
+      (for-each (lambda (c)
+                  (box-cons! (channel-resumers c) (make-resumer c k)))
+                channels)))
 
   (define (pause)
     (pause untangle on-pause))
@@ -496,80 +505,6 @@
           (if channel
               (values channel obj)
               (pause)))))
-
-  (define (channel-recv-without-untangle* channels)
-
-    (define out #f)
-    (define mutex (make-mutex))
-    (define condition (make-condition))
-    (define pool '())
-
-    (define (inboxes-pop!)
-      (let loop ((channels channels))
-        (if (null? channels)
-            (values #f #f)
-            (let* ((channel (car channels))
-                   (out (box-uncons! (channel-inbox channel)
-                                     inbox-empty)))
-              (if (eq? out inbox-empty)
-                  (loop (cdr channels))
-                  (values channel out))))))
-
-    (define (make-resumer channel)
-
-      (define (maybe-remove!? channel resumer)
-
-        (define box (channel-resumers channel))
-
-        (define resumers (unbox-and-swap box '()))
-
-        (define (adjoin! out)
-          (channel-resumers! channel
-                             (box-adjoin! box out)))
-
-        (let loop ((resumers resumers)
-                   (out '()))
-          (if (null? resumers)
-              #f ;; RESUMER was not found in channel-resumers
-              (if (eq? (car resumers) resumer)
-                  (begin
-                    (adjoin! out)
-                    #t)
-                  (loop (cdr resumers)
-                        (cons (car resumers) out))))))
-
-      (define (resumer obj)
-        (with-mutex mutex
-          (let ((continue? (apply maybe-for-each?
-                                  maybe-remove!?
-                                  pool)))
-            (when continue?
-              (if (channel-stopping channel)
-                  (set! out (list channel stopping-singleton))
-                  (set! out (list channel obj)))
-              (condition-signal condition)))))
-
-      (set! pool (cons (list channel resumer) pool))
-
-      resumer)
-
-    (define (stopping?)
-      (or (untangle-stopping untangle)
-          (generator-any?
-           (generator-map channel-stopping?
-                        (list->generator channels)))))
-
-    (with-mutex mutex
-      (for-each (lambda (c)
-                  (box-cons! (channel-resumers c) (make-resumer c)))
-                channels))
-
-    (if (stopping?)
-        stopping-singleton
-        (with-mutex mutex
-          (condition-wait condition
-                          mutex)
-          (apply values out))))
 
   ;;; sockets
 
@@ -729,4 +664,4 @@
 
     (case (socket-type socket)
       ((connection) (connection-accumulator (socket-fd socket)))
-      (else (raise 'not-implemented))))
+      (else (raise 'not-implemented)))))
