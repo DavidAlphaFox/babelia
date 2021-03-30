@@ -425,7 +425,7 @@
             (if (fx=? index count)
                 (cogspace-pause on-pause))
                 (let* ((base (vector-ref bases (modulo (fx+ index offset) count)))
-                       (maybe-thunk (coop-base-try (coop-data base))))
+                       (maybe-thunk ((coop-base-try (coop-data base)))))
                   (if (not maybe-thunk)
                       (loop (fx+ index 1))
                       (call-with-values thunk (coop-wrap base)))))))
