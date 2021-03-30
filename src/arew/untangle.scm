@@ -11,6 +11,9 @@
           untangle-channel-send
           untangle-closing?
           untangle-listen
+          untangle-wrap
+          untangle-choice
+          untangle-perform
           untangle?
           untangle-sleep
           untangle-status
