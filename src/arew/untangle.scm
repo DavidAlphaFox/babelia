@@ -369,7 +369,7 @@
       (let ((maybe-thunk (try)))
         (if (not maybe-thunk)
             (cogspace-pause on-pause))
-            (call-with-values thunk wrap)))
+            (call-with-values maybe-thunk wrap)))
 
     (make-coop% 'base
                 (make-coop-base wrap try block)
