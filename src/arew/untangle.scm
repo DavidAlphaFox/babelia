@@ -73,8 +73,8 @@
   ;; Cogspace is introduced to avoid many `if` in the code related to
   ;; whether the current POSIX thread is running an untangled
   ;; cooperative event-loop or it is a bare POSIX thread.  Each case
-  ;; has two procedures: `pause`, and `resume`. The latter is
-  ;; procedure is passed to `pause` handler, to be able to resume the
+  ;; has two procedures: `pause`, and `resume`. The latter procedure
+  ;; is passed to `pause` handler, to be able to resume the
   ;; continuation. In total, that is four procedures that may be
   ;; called by any of the two: green thread inside untangle, or a bare
   ;; thread. This is done like some to be DRY, and hopefully fast.
@@ -182,6 +182,8 @@
        ;; build the pause handler.
        (escapade escapade-singleton proc k))))
 
+  ;;; Untangle
+
   (define-record-type <untangle>
     (make-untangle% status escapade time queue entangle)
     untangle?
@@ -257,24 +259,6 @@
     (untangle-exec-expired-continuations untangle)
     (untangle-exec-network-continuations untangle))
 
-  (define (untangle-sleep nanoseconds seconds)
-
-    (define untangle (untangled))
-
-    (define (on-sleep resume)
-      ;; RESUME is untangle-sleep continuation.
-      (define item (list (cons when resume)))
-      (box-cons! (untangle-queue untangle) item))
-
-    ;; untangle-sleep is necessarily called while untangle is running,
-    ;; where untangled is true, otherwise user code need to call POSIX
-    ;; sleep.
-    (define delta (make-time 'time-duration nanoseconds seconds))
-    (define when (add-duration (untangle-time untangle) delta))
-
-    ;; XXX: This does not make sense with POSIX threads.
-    (cogspace-pause (cogspace) on-sleep))
-
   (define (untangle-exec-expired-continuations untangle)
 
     (define time (untangle-time untangle))
@@ -311,7 +295,151 @@
     ;; milliseconds.
     (entangle-continue (untangle-entangle untangle TODO)))
 
-  ;; channel
+  ;;; Sleep
+
+  (define (untangle-sleep nanoseconds seconds)
+
+    (define untangle (untangled))
+
+    (define (on-sleep resume)
+      ;; RESUME is untangle-sleep continuation.
+      (define item (list (cons when resume)))
+      (box-cons! (untangle-queue untangle) item))
+
+    ;; untangle-sleep is necessarily called while untangle is running,
+    ;; where untangled is true, otherwise user code need to call POSIX
+    ;; sleep.
+    (define delta (make-time 'time-duration nanoseconds seconds))
+    (define when (add-duration (untangle-time untangle) delta))
+
+    ;; XXX: This does not make sense with POSIX threads.
+    (cogspace-pause (cogspace) on-sleep))
+
+  ;;; Coop
+  ;;
+  ;; Coop is short name for cooperation, is what guile-fibers calls
+  ;; operation and what CML calls event.
+
+  (define-record-type <untangle-coop-base>
+    (make-coop-base wrap try block)
+    coop-base?
+    (wrap coop-base-wrap)
+    (try coop-base-try)
+    (block coop-base-block))
+
+  (define-record-type <untangle-coop>
+    (make-coop% type data wrap)
+    untangle-coop?
+    (type coop-type)
+    (data coop-data)
+    (wrap coop-wrap)
+    (perform coop-perform%))
+
+  (define (untangle-wrap coop proc)
+    ((coop-wrap coop) coop proc))
+
+  (define (untangle-perform coop)
+    ((coop-perform coop) coop))
+
+  (define (make-coop wrap try block)
+
+    (define (coop-wrap coop proc)
+
+      (define (wrapped . args)
+        (call-with-values (lambda args (apply wrap args) proc)))
+
+      (make-coop 'base
+                 (make-coop-base wrapped try block)
+                 coop-wrap
+                 coop-try
+                 coop-block))
+
+    (define (on-pause resume)
+      (block (box 'waiting)
+             (lambda (thunk)
+               (resume (lambda ()
+                         (call-with-values thunk wrap))))))
+
+    (define (coop-perform)
+      (let ((maybe-thunk (try)))
+        (if (not maybe-thunk)
+            (cogspace-pause (cogspace) on-pause))
+            (call-with-values thunk wrap)))
+
+    (make-coop% 'base
+                (make-coop-base wrap try block)
+                coop-wrap
+                coop-perform))
+
+  (define (untangle-choice coops)
+    (define (adjoin vector lst)
+      (raise 'not-implemented)
+
+    (define (flatten coops)
+      (if (null? coops)
+          '()
+          (if (eq? (coop-type (car coops)) 'base)
+              (cons (car coops) (flatten (cdr coops)))
+              (adjoin (coop-data (car coops))
+                      (flatten (cdr coops))))))
+
+    (define (make-choice bases)
+
+      (define (coop-choice-wrap coop proc)
+
+        (define (vector-map proc vector)
+          (define vector* (make-vector (vector-length vector)))
+          (let loop ((index 0))
+            (if ((fx=? index (vector-length vector)))
+                vector* ;; return
+                (begin
+                  (vector-set! vector* index (proc (vector-ref vector index)))
+                  (loop (fx+ index 1))))))
+
+        (make-choice (vector-map (lambda (base) (untangle-coop-wrap base proc))
+                                 (coop-data coop))))
+
+      (define (coop-choice-perform)
+
+        (define (on-pause resume)
+          ;; state is shared with all base coop of the choice.
+          (define state (box 'waiting))
+          (vector-for-each (lambda (base)
+                             (define block (coop-base-block base))
+                             (define wrap (coop-base-wrap base))
+                             (block state
+                                    (lambda (thunk)
+                                      (resume (lambda ()
+                                                (call-with-values thunk wrap))))))
+
+                           bases))
+
+        (let* ((count (vector-length coops))
+               (offset (random count)))
+          (let loop ((index 0))
+            (if (fx=? index count)
+                (cogspace-pause (cogspace) on-pause))
+                (let* ((base (vector-ref bases (modulo (fx+ index offset) count)))
+                       (maybe-thunk (coop-base-try (coop-data base))))
+                  (if (not maybe-thunk)
+                      (loop (fx+ index 1))
+                      (call-with-values thunk (coop-wrap base)))))))
+
+      (make-coop 'choice
+                 bases
+                 coop-choice-wrap
+                 coop-choice-perform))
+
+    (define bases (flatten coops))
+
+    (when (null? bases)
+      (raise 'untangle "coop-choice requires a non empty list"))
+
+    (if (null? (cdr bases))
+        (car bases)
+        (make-choice (list->vector bases))))
+
+  ;;; Channel
 
   (define-record-type <untangle-channel>
     (make-untangle-channel% untangle inbox resumers)
