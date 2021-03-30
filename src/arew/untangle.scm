@@ -35,6 +35,11 @@
           (arew entangle)
           (arew socket))
 
+  ;; magic number that should be replaced by an ad-hoc value, every
+  ;; time it is used.
+  (define magic 1024)
+  (define magic* 42)
+
   ;;; box helpers that use box-cas!
   ;;
   ;; TODO: try to box-cas! a magic N number of times and raise an
@@ -450,22 +455,100 @@
   ;;; Channel
 
   (define-record-type <untangle-channel>
-    (make-untangle-channel% untangle inbox resumers)
+    (make-untangle-channel% pops puts)
     untangle-channel?
-    (untangle channel-untangle)
-    (inbox channel-inbox)
-    (resumers channel-resumers))
+    (pops channel-pops)
+    (puts channel-puts))
 
-  (define untangle-make-channel
-    (case-lambda
-     (() (untangle-make-channel (untangled)))
-     ((untangle)
-      (assume untangle)
-      (make-untangle-channel% untangle (box '()) (box '())))))
+  (define-record-type <queue>
+    (make-queue% data gc-counter)
+    queue?
+    (data queue-data)
+    (gc-counter queue-gc-counter))
 
-  ;; TODO: remove, because YAGNI and DIY?  replace or mix with
-  ;; untangle-close?
-  (define stopping-singleton '(stopping-singleton))
+  (define (make-queue)
+    (make-queue% (box '()) (box magic)))
+
+  (define (untangle-make-channel)
+    (make-untangle-channel% (make-queue) (make-queue)))
+
+  (define (untangle-put channel object)
+
+    (define (try)
+      (let loop0 ((pops (unbox (channel-pops channel))))
+        (if (null? pops)
+            ;; No or no more pop coop.
+            #f
+            (let ((state (caar pops))
+                  (resume (cdar pops)))
+              (let loop1 ((count magic*))
+                (if (fxzero? count)
+                    (loop0 (cdr pops)) ;; give up!
+                    (if (eq? (unbox state) 'synched)
+                        (loop0 (cdr pops))
+                        (if (box-cas! state 'waiting 'synched)
+                            ;; Success: acquired the state.
+                            (begin
+                              ;; Resume the thread that was waiting.
+                              (resume (lambda () object))
+                              ;; Current thread can continue without
+                              ;; pausing. The default return value of
+                              ;; performing a put is nothing, hence:
+                              values)
+                            ;; Otherwise, the state is claimed, try
+                            ;; again...
+                            (loop1 (fx- count 1))))))))))
+
+    (define (block state-put resume-put)
+      (define item (cons state-put resume-put))
+      (queue-cons! (channel-puts channel) item)
+      ;; Since the above call to try, items might have been added
+      ;; concurrently to channel-pops by a thread that could not see
+      ;; the current item since it was not in channel-puts. Hence, go
+      ;; again through all channel-pops *except* items that share the
+      ;; same STATE, because of untangle-choice. Otherwise said, a
+      ;; choice coop can not be performed by itself
+
+      ;; TODO: check that a choice does not have the same channel with
+      ;; untangle-put and untangle-pop, otherwise that will dead-lock.
+      (let loop0 ((pops (unbox (channel-pops channel))))
+        (unless (null? pops)
+          (let ((state-pop (caar pops))
+                (resume-pop (cdar pops)))
+            (if (eq? state-pop state-put)
+                (loop0 (cdr pops))
+                (let loop1 ((count magic*))
+                  (if (fxzero? count)
+                      (loop0 (cdr pops)) ;; give up!
+                      ;; TODO: do case after box-cas! because synched
+                      ;; and claimed can wait.
+                      (case (unbox state-pop)
+                        ((synched) (loop0 (cdr pops)))
+                        ((claimed) (loop1 (fx- count 1)))
+                        ((waiting)
+                         ;; Try to rendez-vous, two phase locking?!
+                         ;; If current thread can not claim its own
+                         ;; state, there is two cases: 1) it was
+                         ;; synched, that means the current thread has
+                         ;; nothing to do 2) it was claimed, TODO: it
+                         ;; means the current thread could retry with
+                         ;; loop1... but guile-fibers does not. Note:
+                         ;; there is no return value.
+                         (when (box-cas! state-put 'waiting 'claimed)
+                           (if (box-cas! state-pop 'waiting 'synched)
+                               (begin ;; rendez vous!
+                                 (set-box! state-put 'synched)
+                                 (resume-pop (lambda () object))
+                                 (resume-put values))
+                               (if (eq? (unbox state-pop) 'claimed)
+                                   (begin
+                                     (set-box! state-put 'waiting)
+                                     (loop1 (fx- count 1)))
+                                   (begin
+                                     (set-box! state-put 'waiting)
+                                     (loop0 (cdr pops))))))
+
+    (make-coop values try block))
 
   (define (untangle-channel-send channel obj)
 
@@ -653,7 +736,7 @@
   (define SOCK_NONBLOCK 2048)
 
   ;; XXX: benchmark? make it configureable?
-  (define backlog 1024)
+  (define backlog magic)
 
   (define (make-untangle-tcp-server-socket ip port)
     (define domain=inet 2)
@@ -727,8 +810,8 @@
     (define untangle (untangled))
 
     (define (connection-generator fd)
-      ;; The value 1024 should be benchmarked somehow.
-      (define bytevector (make-bytevector 1024))
+      ;; The value magic should be benchmarked somehow.
+      (define bytevector (make-bytevector magic))
       (define index -1)
       (define count -1)
       (define untangle (untangled))
