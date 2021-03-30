@@ -85,8 +85,13 @@
     (pause cogspace-pause-ref)
     (data cogspace-data))
 
-  (define (cogspace-pause cogspace on-pause)
-    ((cogspace-pause-ref cogspace) on-pause))
+  (define (cogspace-pause on-pause)
+    (unless (cogspace)
+      ;; If there is no registred cogspace, then it is necessarly a
+      ;; bare cogspace, because untangle procedures are called by
+      ;; untangle-start that setups the appropriate untangle cogspace.
+      (cogspace (make-bare-cogspace)))
+    ((cogspace-pause-ref (cogspace)) on-pause))
 
   (define (make-bare-cogspace)
     ;; Also know as bare POSIX thread without untangle
@@ -313,7 +318,7 @@
     (define when (add-duration (untangle-time untangle) delta))
 
     ;; XXX: This does not make sense with POSIX threads.
-    (cogspace-pause (cogspace) on-sleep))
+    (cogspace-pause on-sleep))
 
   ;;; Coop
   ;;
@@ -363,7 +368,7 @@
     (define (coop-perform)
       (let ((maybe-thunk (try)))
         (if (not maybe-thunk)
-            (cogspace-pause (cogspace) on-pause))
+            (cogspace-pause on-pause))
             (call-with-values thunk wrap)))
 
     (make-coop% 'base
@@ -418,7 +423,7 @@
                (offset (random count)))
           (let loop ((index 0))
             (if (fx=? index count)
-                (cogspace-pause (cogspace) on-pause))
+                (cogspace-pause on-pause))
                 (let* ((base (vector-ref bases (modulo (fx+ index offset) count)))
                        (maybe-thunk (coop-base-try (coop-data base))))
                   (if (not maybe-thunk)
@@ -490,7 +495,7 @@
     (define (pause)
       ;; Mind the fact that the escapade is bound to the calling
       ;; <untangle> instance that is UNTANGLE.
-      (cogspace-pause (cogspace) on-pause))
+      (cogspace-pause on-pause))
 
     (if (untangle-stopping? untangle)
         stopping-singleton
